@@ -71,6 +71,7 @@ export class Client {
   /** Tracks progress of data transfers. */
   protected _progressTracker: ProgressTracker
   private context
+
   /**
    * Instantiate an FTP client.
    *
@@ -113,7 +114,7 @@ export class Client {
    * Returns true if the client is closed and can't be used anymore.
    */
   get closed(): boolean {
-    let  startTime1 = new Date().getTime();
+    let startTime1 = new Date().getTime();
     let isClosed = this.ftp.closed;
     let endTime1 = new Date().getTime();
     let averageTime1 = ((endTime1 - startTime1) * 1000) / 1;
@@ -176,7 +177,8 @@ export class Client {
     return this._handleConnectResponse()
   }
 
-  async connectTLS(port = 21, host: string = 'localhost', options: socket.TLSConnectOptions, secureConnectListener?: () => void): Promise<socket.TLSSocket> {
+  async connectTLS(port = 21, host: string = 'localhost', options: socket.TLSConnectOptions,
+    secureConnectListener?: () => void): Promise<socket.TLSSocket> {
     if (port < 0 || port > 65535) {
       throw new Error('port must limit between 0 and 65535')
     }
@@ -242,8 +244,7 @@ export class Client {
       if (res instanceof Error) {
         // The connection has been destroyed by the FTPContext at this point.
         task.reject(res)
-      }
-      else if (positiveCompletion(res.code)) {
+      } else if (positiveCompletion(res.code)) {
         task.resolve(res)
       }
       // Reject all other codes, including 120 "Service ready in nnn minutes".
@@ -275,11 +276,9 @@ export class Client {
     return this.ftp.handle(command, (res, task) => {
       if (res instanceof FTPError) {
         task.resolve({ code: res.code, message: res.message })
-      }
-      else if (res instanceof Error) {
+      } else if (res instanceof Error) {
         task.reject(res)
-      }
-      else {
+      } else {
         task.resolve(res)
       }
     })
@@ -313,14 +312,11 @@ export class Client {
     return this.ftp.handle("USER " + user, (res, task) => {
       if (res instanceof Error) {
         task.reject(res)
-      }
-      else if (positiveCompletion(res.code)) { // User logged in proceed OR Command superfluous
+      } else if (positiveCompletion(res.code)) { // User logged in proceed OR Command superfluous
         task.resolve(res)
-      }
-      else if (res.code === 331) { // User name okay, need password
+      } else if (res.code === 331) { // User name okay, need password
         this.ftp.send("PASS " + password)
-      }
-      else { // Also report error on 332 (Need account)
+      } else { // Also report error on 332 (Need account)
         task.reject(new FTPError(res))
       }
     })
@@ -372,8 +368,7 @@ export class Client {
         let endTime0 = new Date().getTime();
         let averageTime0 = ((endTime0 - startTime0) * 1000) / BASE_COUNT;
         console.log("BasicFtpTest : connectImplicitTLS averageTime : " + averageTime0 + "us")
-      }
-      else {
+      } else {
         let startTime1 = new Date().getTime();
         welcome = await this.connect(options.host, options.port)
         let endTime1 = new Date().getTime();
@@ -542,8 +537,8 @@ export class Client {
    * @param source  Readable stream or path to a local file.
    * @param toRemotePath  Path to a remote file to write to.
    */
-  async uploadFrom(source: fs.Stream | string, toRemotePath: string, options: UploadOptions = {
-  }): Promise<FTPResponse> {
+  async uploadFrom(source: fs.Stream | string, toRemotePath: string,
+    options: UploadOptions = {}): Promise<FTPResponse> {
     return this._uploadWithCommand(source, toRemotePath, "STOR", options)
   }
 
@@ -554,8 +549,8 @@ export class Client {
    * @param source  Readable stream or path to a local file.
    * @param toRemotePath  Path to a remote file to write to.
    */
-  async appendFrom(source: fs.Stream | string, toRemotePath: string, options: UploadOptions = {
-  }): Promise<FTPResponse> {
+  async appendFrom(source: fs.Stream | string, toRemotePath: string,
+    options: UploadOptions = {}): Promise<FTPResponse> {
     let startTime1 = new Date().getTime();
     let result = this._uploadWithCommand(source, toRemotePath, "APPE", options)
     let endTime1 = new Date().getTime();
@@ -567,7 +562,8 @@ export class Client {
   /**
    * @protected
    */
-  protected async _uploadWithCommand(source: fs.Stream | string, remotePath: string, command: UploadCommand, options: UploadOptions): Promise<FTPResponse> {
+  protected async _uploadWithCommand(source: fs.Stream | string, remotePath: string, command: UploadCommand,
+    options: UploadOptions): Promise<FTPResponse> {
     if (typeof source === "string") {
       return this._uploadLocalFile(source, remotePath, command, options)
     }
@@ -577,13 +573,22 @@ export class Client {
   /**
    * @protected
    */
-  protected async _uploadLocalFile(localPath: string, remotePath: string, command: UploadCommand, options: UploadOptions): Promise<FTPResponse> {
+  protected async _uploadLocalFile(localPath: string, remotePath: string, command: UploadCommand,
+    options: UploadOptions): Promise<FTPResponse> {
     const [sourceErr, source] = await to<fs.Stream>(fs.createStream(localPath, 'a+'))
-    if (sourceErr) throw sourceErr;
-    if (!source) throw new Error('createStream fail');
+    if (sourceErr) {
+      throw sourceErr;
+    }
+    if (!source) {
+      throw new Error('createStream fail');
+    }
     const [statErr, stat] = await to<fs.Stat>(fs.stat(localPath))
-    if (statErr) throw statErr;
-    if (!stat) throw new Error('file get stat fail');
+    if (statErr) {
+      throw statErr;
+    }
+    if (!stat) {
+      throw new Error('file get stat fail');
+    }
     if (options) {
       if (!options.localStart) {
         options.localStart = 0;
@@ -599,8 +604,7 @@ export class Client {
     }
     try {
       return await this._uploadFromStream(source, remotePath, command, options)
-    }
-    finally {
+    } finally {
       let [err, closeInfo] = await to<void>(ignoreError(() => {
         if (source) {
           return source.close()
@@ -611,14 +615,17 @@ export class Client {
         }
       })
       )
-      if (err) throw err;
+      if (err) {
+        throw err;
+      }
     }
   }
 
   /**
    * @protected
    */
-  protected async _uploadFromStream(source: fs.Stream, remotePath: string, command: UploadCommand, options: UploadOptions): Promise<FTPResponse> {
+  protected async _uploadFromStream(source: fs.Stream, remotePath: string, command: UploadCommand,
+    options: UploadOptions): Promise<FTPResponse> {
     let onError = (err: ClientError) => this.ftp.closeWithError(err)
     try {
       const validPath = await this.protectWhitespace(remotePath)
@@ -647,8 +654,7 @@ export class Client {
       },
         options,
         onError)
-    }
-    finally {
+    } finally {
       if (this.ftp && this.ftp.dataSocket) {
         this.ftp.dataSocket.off('error')
         onError = null;
@@ -682,18 +688,23 @@ export class Client {
   protected async _downloadToFile(localPath: string, remotePath: string, startAt: number) {
     const appendingToLocalFile = startAt > 0
     const [destinationErr, destination] = await to<fs.Stream>(fs.createStream(localPath, 'a+'))
-    if (destinationErr) throw destinationErr
-    if (!destination) throw new Error('createStream fail')
+    if (destinationErr) {
+      throw destinationErr
+    }
+    if (!destination) {
+      throw new Error('createStream fail')
+    }
     try {
       let fileSize = 0;
       if (remotePath) {
         let [fileSizeErr, fileSizeNew] = await to<number>(this.size(remotePath))
-        if (fileSizeErr) throw fileSizeErr
+        if (fileSizeErr) {
+          throw fileSizeErr
+        }
         fileSize = fileSizeNew
       }
       return await this._downloadToStream(destination, remotePath, startAt, fileSize)
-    }
-    catch (err) {
+    } catch (err) {
       const localFileStats = await ignoreError(() => {
         return fs.stat(localPath)
       })
@@ -705,8 +716,7 @@ export class Client {
         })
       }
       throw err
-    }
-    finally {
+    } finally {
       let [err, closeInfo] = await to<void>(ignoreError(() => {
         if (destination) {
           return destination.close()
@@ -717,14 +727,17 @@ export class Client {
         }
       })
       )
-      if (err) throw err;
+      if (err) {
+        throw err;
+      }
     }
   }
 
   /**
    * @protected
    */
-  protected async _downloadToStream(destination: fs.Stream, remotePath: string, startAt: number, fileSize: number = 0): Promise<FTPResponse> {
+  protected async _downloadToStream(destination: fs.Stream, remotePath: string, startAt: number,
+    fileSize: number = 0): Promise<FTPResponse> {
     let onError = (err: ClientError) => this.ftp.closeWithError(err)
     try {
       const validPath = await this.protectWhitespace(remotePath)
@@ -739,8 +752,7 @@ export class Client {
         type: "download",
         fileSize: fileSize
       }, onError)
-    }
-    finally {
+    } finally {
       if (this.ftp && this.ftp.dataSocket) {
         this.ftp.dataSocket.off('error')
         onError = null;
@@ -767,8 +779,7 @@ export class Client {
         // Use successful candidate for all subsequent requests.
         this.availableListCommands = [candidate]
         return parsedList
-      }
-      catch (err) {
+      } catch (err) {
         const shouldTryNext = err instanceof FTPError
         if (!shouldTryNext) {
           return new Promise(function (resolve, reject) {
@@ -816,7 +827,8 @@ export class Client {
       tracker: this._progressTracker,
       command,
       remotePath: "",
-      type: "list"
+      type: "list",
+      encodeToString: true
     }, onError)
     )
     if (downloadToErr) {
@@ -932,8 +944,7 @@ export class Client {
         await this.clearWorkingDir()
         await this.cdup()
         await this.removeEmptyDir(file.name)
-      }
-      else {
+      } else {
         await this.remove(file.name)
       }
     }
@@ -987,8 +998,7 @@ export class Client {
           }
         }
         await this.uploadFrom(fullPath, file)
-      }
-      else if (stats.isDirectory()) {
+      } else if (stats.isDirectory()) {
         await this._openDir(file)
         await this._uploadToWorkingDir(fullPath)
         await this.cdup()
@@ -1026,8 +1036,7 @@ export class Client {
         await this.cd(file.name)
         await this._downloadFromWorkingDir(localPath)
         await this.cdup()
-      }
-      else if (file.isFile) {
+      } else if (file.isFile) {
         // 此处属于对原库的优化 需要获取一下状态 一是为了阻塞进度 否则立马开启第二个会直接失败 而是确保socket处于连接状态
         if (this.ftp && this.ftp.socket) {
           let [err, stat] = await to<socket.SocketStateBase>(this.ftp.socket.getState())
@@ -1102,8 +1111,7 @@ export class Client {
     const userDir = await this.pwd()
     try {
       return await func()
-    }
-    finally {
+    } finally {
       if (!this.closed) {
         await ignoreError(() => this.cd(userDir))
       }
@@ -1126,8 +1134,7 @@ export class Client {
           ftp.log("Optimal transfer strategy found.")
           this.prepareTransfer = strategy // eslint-disable-line require-atomic-updates
           return res
-        }
-        catch (err: any) {
+        } catch (err: any) {
           // Try the next candidate no matter the exact error. It's possible that a server
           // answered incorrectly to a strategy, for example a PASV answer to an EPSV.
           lastError = err
@@ -1211,8 +1218,7 @@ export class Client {
 async function ensureLocalDirectory(path: string) {
   try {
     await fs.stat(path)
-  }
-  catch (err) {
+  } catch (err) {
     // await fsMkDir(path, { recursive: true })
     await fs.mkdir(path)
   }
@@ -1221,8 +1227,7 @@ async function ensureLocalDirectory(path: string) {
 async function ignoreError<T>(func: () => Promise<T | undefined>) {
   try {
     return await func()
-  }
-  catch (err) {
+  } catch (err) {
     // Ignore
     return undefined
   }

@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 import fs from '@ohos.file.fs';
 import socket from '@ohos.net.socket';
 import { UploadOptions } from './Client'
@@ -73,11 +73,12 @@ class CacheResponseError {
 }
 
 const cacheData: CacheResponseError = new CacheResponseError()
+
 /**
  * Prepare a data socket using passive mode over IPv6.
  */
 export async function enterPassiveModeIPv6(ftp: FTPContext): Promise<FTPResponse> {
-  let  startTime1 = new Date().getTime();
+  let startTime1 = new Date().getTime();
   const res = await ftp.request("EPSV")
   const port = parseEpsvResponse(res.message)
   if (!port) {
@@ -115,7 +116,7 @@ export function parseEpsvResponse(message: string): number {
  * Prepare a data socket using passive mode over IPv4.
  */
 export async function enterPassiveModeIPv4(ftp: FTPContext): Promise<FTPResponse> {
-  let  startTime1 = new Date().getTime();
+  let startTime1 = new Date().getTime();
   const res = await ftp.request("PASV")
   const target = parsePasvResponse(res.message)
   if (!target) {
@@ -429,17 +430,18 @@ export interface TransferConfig {
   ftp: FTPContext
   tracker: ProgressTracker,
   fileSize?: number,
+  encodeToString?: boolean
 }
 
 
-export function uploadFrom(source: fs.Stream, config: TransferConfig, options: UploadOptions, errCallback: Function): Promise<FTPResponse> {
+export function uploadFrom(source: fs.Stream, config: TransferConfig, options: UploadOptions,
+  errCallback: Function): Promise<FTPResponse> {
   const resolver = new TransferResolver(config.ftp, config.tracker)
   const fullCommand = `${config.command} ${config.remotePath}`
   return config.ftp.handle(fullCommand, async (res, task) => {
     if (res instanceof Error) {
       resolver.onError(task, res)
-    }
-    else if (res.code === 150 || res.code === 125) { // Ready to upload
+    } else if (res.code === 150 || res.code === 125) { // Ready to upload
       const dataSocket = config.ftp.dataSocket
       if (!dataSocket) {
         resolver.onError(task, new Error("Upload should begin but no data connection is available."))
@@ -503,7 +505,7 @@ export function uploadFrom(source: fs.Stream, config: TransferConfig, options: U
                 length: lastSize
               })
             } else {
-              readLen = await  source.read(readBuffer, {
+              readLen = await source.read(readBuffer, {
                 offset: start
               })
             }
@@ -539,18 +541,17 @@ export function uploadFrom(source: fs.Stream, config: TransferConfig, options: U
           resolver.onError(task, err);
         }
       })
-    }
-    else if (positiveCompletion(res.code)) { // Transfer complete
+    } else if (positiveCompletion(res.code)) { // Transfer complete
       resolver.onControlDone(task, res)
-    }
-    else if (positiveIntermediate(res.code)) {
+    } else if (positiveIntermediate(res.code)) {
       resolver.onUnexpectedRequest(res)
     }
     // Ignore all other positive preliminary response codes (< 200)
   })
 }
 
-export function downloadTo(destination: fs.Stream, config: TransferConfig, errCallback: Function): Promise<FTPResponse> {
+export function downloadTo(destination: fs.Stream, config: TransferConfig,
+  errCallback: Function): Promise<FTPResponse> {
   if (!config.ftp.dataSocket) {
     throw new Error("Download will be initiated but no data connection is available.")
   }
@@ -623,8 +624,12 @@ export function downloadTo(destination: fs.Stream, config: TransferConfig, errCa
                   config.tracker.setBytesRead(0)
                   config.tracker.setBytesWritten(cacheSize + cache)
                 }
-                let tempStr = buffer.from(tempData).toString(config?.ftp?.encoding ? config?.ftp?.encoding : 'utf-8')
-                destination.writeSync(tempStr);
+                if (config.encodeToString === true) {
+                  let tempStr = buffer.from(tempData).toString(config?.ftp?.encoding ? config?.ftp?.encoding : 'utf-8')
+                  destination.writeSync(tempStr)
+                } else {
+                  destination.writeSync(tempData);
+                }
                 destination.flushSync();
               }
             }
@@ -645,8 +650,12 @@ export function downloadTo(destination: fs.Stream, config: TransferConfig, errCa
                   config.tracker.setBytesRead(0)
                   config.tracker.setBytesWritten(cacheSize + cache)
                 }
-                let tempStr = buffer.from(tempData).toString(config?.ftp?.encoding ? config?.ftp?.encoding : 'utf-8')
-                destination.writeSync(tempStr);
+                if (config.encodeToString === true) {
+                  let tempStr = buffer.from(tempData).toString(config?.ftp?.encoding ? config?.ftp?.encoding : 'utf-8')
+                  destination.writeSync(tempStr)
+                } else {
+                  destination.writeSync(tempData);
+                }
                 destination.flushSync();
               }
             }
@@ -684,11 +693,11 @@ export function downloadTo(destination: fs.Stream, config: TransferConfig, errCa
  * @param eventName  The event to subscribe to if the condition is not met.
  * @param action  The function to call.
  */
-function onConditionOrEvent(condition: boolean, emitter: socket.TCPSocket | socket.TLSSocket, eventName: string, action: () => void) {
+function onConditionOrEvent(condition: boolean, emitter: socket.TCPSocket | socket.TLSSocket, eventName: string,
+  action: () => void) {
   if (condition === true) {
     action()
-  }
-  else {
+  } else {
     // emitter.once(eventName, () => action())
     emitter.on('connect', () => {
       action();
