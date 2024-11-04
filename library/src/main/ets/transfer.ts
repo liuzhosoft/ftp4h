@@ -430,7 +430,8 @@ export interface TransferConfig {
   ftp: FTPContext
   tracker: ProgressTracker,
   fileSize?: number,
-  encodeToString?: boolean
+  encodeToString?: boolean,
+  startAt?: number
 }
 
 
@@ -552,6 +553,7 @@ export function uploadFrom(source: fs.Stream, config: TransferConfig, options: U
 
 export function downloadTo(destination: fs.Stream, config: TransferConfig,
   errCallback: Function): Promise<FTPResponse> {
+  console.log(`xxx download ${config.remotePath}, startAt = ${config.startAt}, fileSize = ${config.fileSize}`)
   if (!config.ftp.dataSocket) {
     throw new Error("Download will be initiated but no data connection is available.")
   }
@@ -593,7 +595,7 @@ export function downloadTo(destination: fs.Stream, config: TransferConfig,
         config.fileSize = 0;
       }
       let [resultErr, resultPromise] = await to<CacheResponseError>(new Promise(function (resolve, reject) {
-        let intervalId = setInterval(async function () {
+        let intervalId = setInterval(function () {
           timeOut = timeOut + 20;
           if (!cacheData) {
             clearInterval(intervalId);
@@ -616,21 +618,21 @@ export function downloadTo(destination: fs.Stream, config: TransferConfig,
               clearInterval(intervalId);
               resolve(cacheData)
             } else {
-              while (data.length > 0) {
+              while (data.length > 0 && cacheSize < config.fileSize) {
                 count = 0;
                 let tempData = data.removeByIndex(0)
+                if (config.encodeToString === true) {
+                  let tempStr = buffer.from(tempData).toString(config?.ftp?.encoding ? config?.ftp?.encoding : 'utf-8')
+                  destination.writeSync(tempStr)
+                } else {
+                  destination.writeSync(tempData, { offset: (config.startAt ?? 0) + cacheSize });
+                }
+                destination.flushSync();
                 cacheSize += tempData.byteLength;
                 if (config && config.tracker) {
                   config.tracker.setBytesRead(0)
                   config.tracker.setBytesWritten(cacheSize + cache)
                 }
-                if (config.encodeToString === true) {
-                  let tempStr = buffer.from(tempData).toString(config?.ftp?.encoding ? config?.ftp?.encoding : 'utf-8')
-                  destination.writeSync(tempStr)
-                } else {
-                  destination.writeSync(tempData);
-                }
-                destination.flushSync();
               }
             }
           } else {
@@ -645,18 +647,18 @@ export function downloadTo(destination: fs.Stream, config: TransferConfig,
               while (data.length > 0) {
                 count = 0;
                 let tempData = data.removeByIndex(0)
+                if (config.encodeToString === true) {
+                  let tempStr = buffer.from(tempData).toString(config?.ftp?.encoding ? config?.ftp?.encoding : 'utf-8')
+                  destination.writeSync(tempStr)
+                } else {
+                  destination.writeSync(tempData, { offset: (config.startAt ?? 0) + cacheSize });
+                }
+                destination.flushSync();
                 cacheSize += tempData.byteLength;
                 if (config && config.tracker) {
                   config.tracker.setBytesRead(0)
                   config.tracker.setBytesWritten(cacheSize + cache)
                 }
-                if (config.encodeToString === true) {
-                  let tempStr = buffer.from(tempData).toString(config?.ftp?.encoding ? config?.ftp?.encoding : 'utf-8')
-                  destination.writeSync(tempStr)
-                } else {
-                  destination.writeSync(tempData);
-                }
-                destination.flushSync();
               }
             }
           }
@@ -666,6 +668,7 @@ export function downloadTo(destination: fs.Stream, config: TransferConfig,
           // }
         }, 20)
       }))
+      dataSocket.close()
       if (resultErr) {
         throw resultErr
       }

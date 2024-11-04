@@ -160,6 +160,7 @@ export class Client {
       },
       timeout: this.ftp.timeout ? this.ftp.timeout : 30000
     }
+    const responsePromise = this._handleConnectResponse()
     let [connectErr, connectInfo] = await to<void>(tempSocket.connect(option))
     if (connectErr) {
       throw connectErr
@@ -174,7 +175,7 @@ export class Client {
     }
     this.ftp.log(`Connected to ${result} (${data})`)
 
-    return this._handleConnectResponse()
+    return responsePromise
   }
 
   async connectTLS(port = 21, host: string = 'localhost', options: socket.TLSConnectOptions,
@@ -675,11 +676,11 @@ export class Client {
    * @param fromRemotePath  Path of the remote file to read from.
    * @param startAt  Position within the remote file to start downloading at. If the destination is a file, this offset is also applied to it.
    */
-  async downloadTo(destination: fs.Stream | string, fromRemotePath: string, startAt = 0) {
+  async downloadTo(destination: fs.Stream | string, fromRemotePath: string, startAt = 0, fileSize: number = 0) {
     if (typeof destination === "string") {
       return this._downloadToFile(destination, fromRemotePath, startAt)
     }
-    return this._downloadToStream(destination, fromRemotePath, startAt)
+    return this._downloadToStream(destination, fromRemotePath, startAt, fileSize)
   }
 
   /**
@@ -750,7 +751,8 @@ export class Client {
         command: startAt > 0 ? `REST ${startAt}` : `RETR ${validPath}`,
         remotePath: validPath,
         type: "download",
-        fileSize: fileSize
+        fileSize: fileSize,
+        startAt: startAt
       }, onError)
     } finally {
       if (this.ftp && this.ftp.dataSocket) {
@@ -769,6 +771,7 @@ export class Client {
    * @param [path]  Path to remote file or directory.
    */
   async list(path = ""): Promise<FileInfo[]> {
+    this.ftp.log(`list ${path}`)
     const validPath = await this.protectWhitespace(path)
     let lastError: any
     for (const candidate of this.availableListCommands) {
@@ -780,6 +783,7 @@ export class Client {
         this.availableListCommands = [candidate]
         return parsedList
       } catch (err) {
+        this.ftp.log(`list ${path} error ${err.message}`)
         const shouldTryNext = err instanceof FTPError
         if (!shouldTryNext) {
           return new Promise(function (resolve, reject) {
@@ -828,7 +832,8 @@ export class Client {
       command,
       remotePath: "",
       type: "list",
-      encodeToString: true
+      encodeToString: true,
+      startAt: 0
     }, onError)
     )
     if (downloadToErr) {
