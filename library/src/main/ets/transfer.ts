@@ -72,7 +72,8 @@ class CacheResponseError {
   }
 }
 
-const cacheData: CacheResponseError = new CacheResponseError()
+// const cacheData: CacheResponseError = new CacheResponseError()
+const cacheDataSet: Map<string, CacheResponseError> = new Map()
 
 /**
  * Prepare a data socket using passive mode over IPv6.
@@ -167,7 +168,8 @@ export async function connectForPassiveTransfer(host: string, port: number, ftp:
       reject(new Error('socket can not be null'))
     })
   }
-
+  const cacheData = cacheDataSet.get(`${host}:${port}`) ?? new CacheResponseError()
+  cacheDataSet.set(`${host}:${port}`, cacheData)
   const handleConnErr = function (err: Error) {
     err.message = "Can't open data connection in passive mode: " + err.message
     if (cacheData) {
@@ -594,6 +596,9 @@ export function downloadTo(destination: fs.Stream, config: TransferConfig,
       if (!config.fileSize) {
         config.fileSize = 0;
       }
+      const add = await dataSocket.getRemoteAddress()
+      const cacheKey = `${add.address}:${add.port}`
+      const cacheData = cacheDataSet.get(cacheKey)
       let [resultErr, resultPromise] = await to<CacheResponseError>(new Promise(function (resolve, reject) {
         let intervalId = setInterval(function () {
           timeOut = timeOut + 20;
@@ -676,6 +681,7 @@ export function downloadTo(destination: fs.Stream, config: TransferConfig,
       cacheSize = 0;
       count = 0;
       await resolver.onDataDone(task);
+      cacheDataSet.delete(cacheKey)
     } else if (res.code === 350) { // Restarting at startAt.
       config.ftp.send("RETR " + config.remotePath)
     } else if (positiveCompletion(res.code)) { // Transfer complete
