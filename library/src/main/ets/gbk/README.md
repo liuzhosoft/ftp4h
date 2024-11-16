@@ -1,0 +1,1 @@
+gbk copy from: https://github.com/cnwhy/GBK.js

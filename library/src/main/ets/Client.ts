@@ -25,6 +25,8 @@ import { downloadTo, enterPassiveModeIPv4, enterPassiveModeIPv6, UploadCommand, 
 import { isMultiline, positiveCompletion } from './parseControlResponse'
 
 import buffer from '@ohos.buffer'
+import { GBK } from "./gbk/gbk";
+import { CharsetUtil, StringEncoding } from "./StringEncoding";
 
 const BASE_COUNT = 1
 
@@ -832,7 +834,6 @@ export class Client {
       command,
       remotePath: "",
       type: "list",
-      encodeToString: true,
       startAt: 0
     }, onError)
     )
@@ -882,18 +883,21 @@ export class Client {
     }
     readSize += readLen;
     let text = ''
-    let encodingStr = ''
+    let encodingStr : StringEncoding
     if (this.ftp && this.ftp.encoding) {
       encodingStr = this.ftp.encoding;
     } else {
       encodingStr = 'utf8';
     }
-    let trueBuff = buff.slice(0, readLen)
-    text += buffer.from(trueBuff).toString(encodingStr)
+    let trueBuff = buff.slice(0, readLen);
+    text += CharsetUtil.decode(trueBuff, encodingStr);
     while (readLen > 0) {
       readLen = await inputStream.read(buff, { offset: readSize })
+      if (readLen <= 0) {
+        continue;
+      }
       let trueBuff = buff.slice(0, readLen)
-      text += buffer.from(trueBuff).toString(encodingStr)
+      text += CharsetUtil.decode(trueBuff, encodingStr);
       readSize += readLen;
     }
     this.ftp.log(text)

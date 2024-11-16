@@ -12,5 +12,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
-export type StringEncoding = "utf8" | "ascii" | "utf-8" | "utf16le" | "ucs2" | "ucs-2" | "base64" | "latin1" | "binary" | "hex" | undefined
+import { GBK } from "./gbk/gbk";
+import { buffer } from "@kit.ArkTS";
+
+export type StringEncoding =
+  "utf8" | "ascii" | "utf-8" | "utf16le" | "ucs2" | "ucs-2" |
+  "base64" | "latin1" | "binary" | "hex" | "gbk" | undefined;
+
+
+export namespace CharsetUtil {
+  export function decode(data: ArrayBuffer, encoding: StringEncoding): string {
+    if (encoding === "gbk") {
+      return GBK.decode(new Uint8Array(data));
+    } else {
+      return buffer.from(data).toString(encoding);
+    }
+  }
+}

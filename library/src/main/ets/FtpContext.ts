@@ -15,10 +15,11 @@
 
 import socket from '@ohos.net.socket';
 import { parseControlResponse } from './parseControlResponse'
-import { StringEncoding } from './StringEncoding'
+import { CharsetUtil, StringEncoding } from './StringEncoding'
 import { to } from './PathUtil'
 import buffer from '@ohos.buffer';
 import connection from '@ohos.net.connection';
+import { GBK } from "./gbk/gbk";
 
 interface Task {
   /** Handles a response for a task. */
@@ -181,7 +182,7 @@ export class FTPContext {
           this._encoding = 'utf8'
         }
         if (data) {
-          let serverData = buffer.from(data.message).toString(this._encoding)
+          let serverData = CharsetUtil.decode(data.message, this.encoding);
           this._onControlSocketData(serverData)
         } else {
           throw new Error('get data null')

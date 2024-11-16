@@ -21,8 +21,8 @@ import { ClientError, FTPContext, FTPResponse, TaskResolver } from './FtpContext
 import { ProgressTracker, ProgressType } from './ProgressTracker'
 import { positiveCompletion, positiveIntermediate } from './parseControlResponse'
 import { to } from './PathUtil'
-import buffer from '@ohos.buffer';
 import ArrayList from '@ohos.util.ArrayList';
+import { CharsetUtil } from "./StringEncoding";
 
 export type UploadCommand = "STOR" | "APPE"
 
@@ -432,7 +432,6 @@ export interface TransferConfig {
   ftp: FTPContext
   tracker: ProgressTracker,
   fileSize?: number,
-  encodeToString?: boolean,
   startAt?: number
 }
 
@@ -518,7 +517,8 @@ export function uploadFrom(source: fs.Stream, config: TransferConfig, options: U
             }
             let trueData = readBuffer.slice(0, readLen)
             if (isHttps) {
-              let data = buffer.from(trueData).toString(config.ftp.encoding ? config.ftp.encoding : 'utf8')
+              let encoding = config.ftp.encoding ?? "utf8";
+              let data = CharsetUtil.decode(trueData, encoding);
               let localTlsSocket = dataSocket as socket.TLSSocket;
               await localTlsSocket.send(data);
             } else {
@@ -626,12 +626,7 @@ export function downloadTo(destination: fs.Stream, config: TransferConfig,
               while (data.length > 0 && cacheSize < config.fileSize) {
                 count = 0;
                 let tempData = data.removeByIndex(0)
-                if (config.encodeToString === true) {
-                  let tempStr = buffer.from(tempData).toString(config?.ftp?.encoding ? config?.ftp?.encoding : 'utf-8')
-                  destination.writeSync(tempStr)
-                } else {
-                  destination.writeSync(tempData, { offset: (config.startAt ?? 0) + cacheSize });
-                }
+                destination.writeSync(tempData, { offset: (config.startAt ?? 0) + cacheSize });
                 destination.flushSync();
                 cacheSize += tempData.byteLength;
                 if (config && config.tracker) {
@@ -652,12 +647,7 @@ export function downloadTo(destination: fs.Stream, config: TransferConfig,
               while (data.length > 0) {
                 count = 0;
                 let tempData = data.removeByIndex(0)
-                if (config.encodeToString === true) {
-                  let tempStr = buffer.from(tempData).toString(config?.ftp?.encoding ? config?.ftp?.encoding : 'utf-8')
-                  destination.writeSync(tempStr)
-                } else {
-                  destination.writeSync(tempData, { offset: (config.startAt ?? 0) + cacheSize });
-                }
+                destination.writeSync(tempData, { offset: (config.startAt ?? 0) + cacheSize });
                 destination.flushSync();
                 cacheSize += tempData.byteLength;
                 if (config && config.tracker) {
