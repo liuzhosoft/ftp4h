@@ -70,7 +70,7 @@ const LIST_COMMANDS_MLSD: readonly string[] = ["MLSD", "LIST -a", "LIST"];
 /**
  * High-level API to interact with an FTP server.
  */
-export class Client {
+export class FtpClient {
   prepareTransfer: TransferStrategy;
   parseList: RawListParser;
   availableListCommands = LIST_COMMANDS_DEFAULT;

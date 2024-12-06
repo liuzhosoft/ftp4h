@@ -14,7 +14,7 @@
  */
 
 
-import { AccessOptions, Client, FileInfo, FTPResponse, join, to } from "@liuzhosoft/ftp4h";
+import { AccessOptions, FtpClient, FileInfo, FTPResponse, join, to } from "@liuzhosoft/ftp4h";
 import fs from "@ohos.file.fs";
 import {
   AppendListener,
@@ -40,7 +40,7 @@ import {
 import LinkedList from "@ohos.util.LinkedList";
 
 export default class NoTlsUtil {
-  private client: Client;
+  private client: FtpClient;
   private isLogin: boolean = false;
   private TAG: string = "BasicFtp";
 
@@ -51,7 +51,7 @@ export default class NoTlsUtil {
     if (!context.cacheDir) {
       throw new Error("context is not a Context object");
     }
-    this.client = new Client(context, timeOut);
+    this.client = new FtpClient(context, timeOut);
   }
 
   public setTag(tag?: string) {

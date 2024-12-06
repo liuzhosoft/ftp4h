@@ -14,7 +14,7 @@
  */
 
 
-import { AccessOptions, Client } from "@liuzhosoft/ftp4h";
+import { AccessOptions, FtpClient } from "@liuzhosoft/ftp4h";
 import fs from "@ohos.file.fs";
 import socket from "@ohos.net.socket";
 import GlobalObj from "../GlobalObj";
@@ -23,7 +23,7 @@ import GlobalObj from "../GlobalObj";
 @Component
 struct PressPage {
   @State message: string = "Hello World";
-  private client: Client | null = null;
+  private client: FtpClient | null = null;
   private secure: boolean = false;
   private option: socket.TLSConnectOptions = {
     ALPNProtocols: ["spdy/1", "http/1.1"],
@@ -46,7 +46,7 @@ struct PressPage {
 
   aboutToAppear() {
     this.client =
-      new Client(GlobalObj?.getInstance()?.getContext() ? GlobalObj?.getInstance()?.getContext() : getContext(this),
+      new FtpClient(GlobalObj?.getInstance()?.getContext() ? GlobalObj?.getInstance()?.getContext() : getContext(this),
         60000);
   }
 
