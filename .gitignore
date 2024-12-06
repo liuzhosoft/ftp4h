@@ -12,5 +12,5 @@
 /dependencies
 **/.DS_Store
 **/oh-package-lock.json5
-
+.ohpmrc
 /keys/release
