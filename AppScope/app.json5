@@ -1,7 +1,7 @@
 {
   "app": {
-    "bundleName": "com.example.ftp4h",
-    "vendor": "example",
+    "bundleName": "com.liuzhosoft.ftp4h",
+    "vendor": "LiuZho Soft",
     "versionCode": 1000000,
     "versionName": "1.0.0",
     "icon": "$media:app_icon",

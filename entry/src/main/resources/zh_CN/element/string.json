@@ -2,14 +2,10 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "FTP"
+      "value": "ftp4h"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "FTP"
-    },
-    {
-      "name": "EntryAbility_label",
       "value": "FTP"
     },
     {

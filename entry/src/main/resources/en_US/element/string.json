@@ -2,15 +2,11 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "module description"
+      "value": "ftp4h"
     },
     {
       "name": "EntryAbility_desc",
       "value": "description"
-    },
-    {
-      "name": "EntryAbility_label",
-      "value": "label"
     },
     {
       "name": "Reason_Internet",

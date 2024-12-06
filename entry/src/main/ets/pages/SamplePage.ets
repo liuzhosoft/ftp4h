@@ -77,9 +77,9 @@ struct CustomDialogDiy {
 struct SamplePage {
   @State message: string = "Hello World";
   @State secure: boolean = false;
-  @State user: string = "xxx";
-  @State password: string = "xxx";
-  @State host: string = "xxx";
+  @State user: string = "";
+  @State password: string = "";
+  @State host: string = "";
   @State port: number = 21;
   @State secureOptions: socket.TLSConnectOptions | null = null;
   @State remoteRoot: string | null = null;

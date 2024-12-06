@@ -23,6 +23,19 @@
       }
     ],
     "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "/Users/liuzh/.ohos/config/default_ftp4h_v-quUdiFcEO49wJBc2JhqeNFYxo3Q7RcZvrv6jZ4K1M=.cer",
+          "storePassword": "0000001B5DA591F472B140392F51A6F34757148422AA68501FE90FA2189D08F36265E8807B2532E0BD041C",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001BA7A44499019882F11ADDC8CC4B250A264E6D562DDA08E235EA1878843FD0FF162BE27853709DE6",
+          "profile": "/Users/liuzh/.ohos/config/default_ftp4h_v-quUdiFcEO49wJBc2JhqeNFYxo3Q7RcZvrv6jZ4K1M=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "/Users/liuzh/.ohos/config/default_ftp4h_v-quUdiFcEO49wJBc2JhqeNFYxo3Q7RcZvrv6jZ4K1M=.p12"
+        }
+      }
     ]
   },
   "modules": [

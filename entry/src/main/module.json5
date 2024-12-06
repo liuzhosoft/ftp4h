@@ -2,7 +2,7 @@
   "module": {
     "name": "entry",
     "type": "entry",
-    "description": "$string:module_desc",
+    "description": "$string:app_name",
     "mainElement": "EntryAbility",
     "deviceTypes": [
       "default",
