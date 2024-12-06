@@ -13,177 +13,179 @@
  * limitations under the License.
  */
 
-import { FileInfo, FTPResponse } from '@ohos/basic-ftp'
+
+import { FileInfo, FTPResponse } from "@liuzhosoft/ftp4h";
 
 export interface LoginListener {
-  onLoginErr(err: Error)
+  onLoginErr(err: Error);
 
-  onLoginStart(info: string)
+  onLoginStart(info: string);
 
-  onLoginSuccess(result: string)
+  onLoginSuccess(result: string);
 }
 
 export interface FileListListener {
-  getListErr(err: Error)
+  getListErr(err: Error);
 
-  getListStart(info: string)
+  getListStart(info: string);
 
-  getListSuccess(result: FileInfo[])
+  getListSuccess(result: FileInfo[]);
 }
 
 export interface FileSizeListener {
-  getSizeErr(err: Error)
+  getSizeErr(err: Error);
 
-  getSizeStart(info: string)
+  getSizeStart(info: string);
 
-  getSizeSuccess(size: number)
+  getSizeSuccess(size: number);
 }
 
 export interface UploadSingleListener {
-  uploadErr(err: Error)
+  uploadErr(err: Error);
 
-  uploadStart(info: string)
+  uploadStart(info: string);
 
-  uploadSuccess(msg: FTPResponse)
+  uploadSuccess(msg: FTPResponse);
 
-  uploadProgress(currentSize: number, totalSize: number)
+  uploadProgress(currentSize: number, totalSize: number);
 }
+
 export interface AppendListener {
-  appendErr(err: Error)
+  appendErr(err: Error);
 
-  appendStart(info: string)
+  appendStart(info: string);
 
-  appendSuccess(msg: FTPResponse)
+  appendSuccess(msg: FTPResponse);
 
-  appendProgress(currentSize: number, totalSize: number)
+  appendProgress(currentSize: number, totalSize: number);
 }
 
 export interface DownloadSingleListener {
-  downloadErr(err: Error)
+  downloadErr(err: Error);
 
-  downloadStart(info: string)
+  downloadStart(info: string);
 
-  downloadSuccess(msg: FTPResponse)
+  downloadSuccess(msg: FTPResponse);
 
-  downloadProgress(currentSize: number, totalSize: number)
+  downloadProgress(currentSize: number, totalSize: number);
 }
 
 export interface FeaturesListener {
-  featuresErr(err: Error)
+  featuresErr(err: Error);
 
-  featuresStart(info: string)
+  featuresStart(info: string);
 
-  featuresSuccess(msg: Map<string, string>)
+  featuresSuccess(msg: Map<string, string>);
 
 }
 
 export interface SetWorkingDirectoryListener {
-  setWorkingDirectoryErr(err: Error)
+  setWorkingDirectoryErr(err: Error);
 
-  setWorkingDirectoryStart(info: string)
+  setWorkingDirectoryStart(info: string);
 
-  setWorkingDirectorySuccess(msg: FTPResponse)
+  setWorkingDirectorySuccess(msg: FTPResponse);
 
 }
 
 export interface CdToParentDirectoryListener {
-  cdToParentDirectoryErr(err: Error)
+  cdToParentDirectoryErr(err: Error);
 
-  cdToParentDirectoryStart(info: string)
+  cdToParentDirectoryStart(info: string);
 
-  cdToParentDirectorySuccess(msg: FTPResponse)
+  cdToParentDirectorySuccess(msg: FTPResponse);
 
 }
 
 export interface DeleteFileListener {
-  deleteFileErr(err: Error)
+  deleteFileErr(err: Error);
 
-  deleteFileStart(info: string)
+  deleteFileStart(info: string);
 
-  deleteFileSuccess(msg: FTPResponse)
+  deleteFileSuccess(msg: FTPResponse);
 
 }
 
 export interface LastModifyListener {
-  lastModifyErr(err: Error)
+  lastModifyErr(err: Error);
 
-  lastModifyStart(info: string)
+  lastModifyStart(info: string);
 
-  lastModifySuccess(msg: Date)
+  lastModifySuccess(msg: Date);
 
 }
 
 export interface CurrentDirectoryListener {
-  currentDirectoryErr(err: Error)
+  currentDirectoryErr(err: Error);
 
-  currentDirectoryStart(info: string)
+  currentDirectoryStart(info: string);
 
-  currentDirectorySuccess(msg: string)
+  currentDirectorySuccess(msg: string);
 
 }
 
 export interface EnsureRemotePathListener {
-  ensureRemotePathErr(err: Error)
+  ensureRemotePathErr(err: Error);
 
-  ensureRemotePathStart(info: string)
+  ensureRemotePathStart(info: string);
 
-  ensureRemotePathSuccess(msg: string)
+  ensureRemotePathSuccess(msg: string);
 
 }
 
 export interface DeleteEmptyDirectoryListener {
-  deleteEmptyDirectoryErr(err: Error)
+  deleteEmptyDirectoryErr(err: Error);
 
-  deleteEmptyDirectoryStart(info: string)
+  deleteEmptyDirectoryStart(info: string);
 
-  deleteEmptyDirectorySuccess(msg: FTPResponse)
+  deleteEmptyDirectorySuccess(msg: FTPResponse);
 
 }
 
 export interface DeleteAllListener {
-  deleteAllErr(err: Error)
+  deleteAllErr(err: Error);
 
-  deleteAllStart(info: string)
+  deleteAllStart(info: string);
 
-  deleteAllSuccess(msg: string)
+  deleteAllSuccess(msg: string);
 
 }
 
 export interface DeleteAllButSelfListener {
-  deleteAllButSelfErr(err: Error)
+  deleteAllButSelfErr(err: Error);
 
-  deleteAllButSelfStart(info: string)
+  deleteAllButSelfStart(info: string);
 
-  deleteAllButSelfSuccess(msg: string)
+  deleteAllButSelfSuccess(msg: string);
 
 }
 
 export interface RenameFileListener {
-  renameFileErr(err: Error)
+  renameFileErr(err: Error);
 
-  renameFileStart(info: string)
+  renameFileStart(info: string);
 
-  renameFileSuccess(msg: FTPResponse)
+  renameFileSuccess(msg: FTPResponse);
 
 }
 
 export interface UploadDirListener {
-  uploadDirErr(err: Error)
+  uploadDirErr(err: Error);
 
-  uploadDirStart(info: string)
+  uploadDirStart(info: string);
 
-  uploadDirSuccess(msg: string)
+  uploadDirSuccess(msg: string);
 
-  uploadDirProgress(currentSize: number, totalSize: number)
+  uploadDirProgress(currentSize: number, totalSize: number);
 }
 
 export interface DownloadDirListener {
-  downloadDirErr(err: Error)
+  downloadDirErr(err: Error);
 
-  downloadDirStart(info: string)
+  downloadDirStart(info: string);
 
-  downloadDirSuccess(msg: string)
+  downloadDirSuccess(msg: string);
 
-  downloadDirProgress(currentSize: number, totalSize: number)
+  downloadDirProgress(currentSize: number, totalSize: number);
 
 }

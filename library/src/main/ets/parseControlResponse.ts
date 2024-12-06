@@ -12,12 +12,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
-const LF = "\n"
+
+
+const LF = "\n";
 
 export interface ParsedResponse {
-  readonly messages: string[]
-  readonly rest: string
+  readonly messages: string[];
+  readonly rest: string;
 }
 
 /**
@@ -28,58 +29,57 @@ export interface ParsedResponse {
  * describes a `rest`. This function converts all CRLF to LF.
  */
 export function parseControlResponse(text: string): ParsedResponse {
-  const lines = text.split(/\r?\n/).filter(isNotBlank)
-  const messages = []
-  let startAt = 0
-  let tokenRegex: RegExp | undefined
+  const lines = text.split(/\r?\n/).filter(isNotBlank);
+  const messages = [];
+  let startAt = 0;
+  let tokenRegex: RegExp | undefined;
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
+    const line = lines[i];
     // No group has been opened.
     if (!tokenRegex) {
       if (isMultiline(line)) {
         // Open a group by setting an expected token.
-        const token = line.substr(0, 3)
-        tokenRegex = new RegExp(`^${token}(?:$| )`)
-        startAt = i
-      }
-      else if (isSingleLine(line)) {
+        const token = line.substr(0, 3);
+        tokenRegex = new RegExp(`^${token}(?:$| )`);
+        startAt = i;
+      } else if (isSingleLine(line)) {
         // Single lines can be grouped immediately.
-        messages.push(line)
+        messages.push(line);
       }
     }
     // Group has been opened, expect closing token.
     else if (tokenRegex.test(line)) {
-      tokenRegex = undefined
-      messages.push(lines.slice(startAt, i + 1).join(LF))
+      tokenRegex = undefined;
+      messages.push(lines.slice(startAt, i + 1).join(LF));
     }
   }
   // The last group might not have been closed, report it as a rest.
-  const rest = tokenRegex ? lines.slice(startAt).join(LF) + LF : ""
-  return { messages, rest }
+  const rest = tokenRegex ? lines.slice(startAt).join(LF) + LF : "";
+  return { messages, rest };
 }
 
 export function isSingleLine(line: string) {
-  return /^\d\d\d(?:$| )/.test(line)
+  return /^\d\d\d(?:$| )/.test(line);
 }
 
 export function isMultiline(line: string) {
-  return /^\d\d\d-/.test(line)
+  return /^\d\d\d-/.test(line);
 }
 
 /**
  * Return true if an FTP return code describes a positive completion.
  */
 export function positiveCompletion(code: number): boolean {
-  return code >= 200 && code < 300
+  return code >= 200 && code < 300;
 }
 
 /**
  * Return true if an FTP return code describes a positive intermediate response.
  */
 export function positiveIntermediate(code: number): boolean {
-  return code >= 300 && code < 400
+  return code >= 300 && code < 400;
 }
 
 function isNotBlank(str: string): boolean {
-  return str.trim() !== ""
+  return str.trim() !== "";
 }

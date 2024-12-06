@@ -17,7 +17,7 @@
     "org": "opensource"
   },
   "type": "module",
-  "repository": "https://github.com/liuzhosoft/BasicFtpHarmony",
+  "repository": "https://github.com/liuzhosoft/ftp4h",
   "version": "1.0.0",
   "devDependencies": {
   }

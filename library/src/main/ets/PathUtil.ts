@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+
 const nodeInternalPrefix = "__node_internal_";
 const constants = {
   // Alphabet chars.
@@ -148,24 +149,33 @@ function StringPrototypeSlice(self, start, end) {
 }
 
 function join(...args) {
-  if (args.length === 0) return ".";
+  if (args.length === 0) {
+    return ".";
+  }
   let joined;
   for (let i = 0; i < args.length; ++i) {
     const arg = args[i];
     validateString(arg, "path");
     if (arg.length > 0) {
-      if (joined === undefined) joined = arg;
-      else joined += `/${arg}`;
+      if (joined === undefined) {
+        joined = arg;
+      } else {
+        joined += `/${arg}`;
+      }
     }
   }
-  if (joined === undefined) return ".";
+  if (joined === undefined) {
+    return ".";
+  }
   return normalize(joined);
 }
 
 function normalize(path) {
   validateString(path, "path");
 
-  if (path.length === 0) return ".";
+  if (path.length === 0) {
+    return ".";
+  }
 
   const isAbsolute =
     StringPrototypeCharCodeAt(path, 0) === constants.CHAR_FORWARD_SLASH;
@@ -174,13 +184,17 @@ function normalize(path) {
     constants.CHAR_FORWARD_SLASH;
 
   // Normalize the path
-  path = normalizeString(path,!isAbsolute, "/");
+  path = normalizeString(path, !isAbsolute, "/");
 
   if (path.length === 0) {
-    if (isAbsolute) return "/";
+    if (isAbsolute) {
+      return "/";
+    }
     return trailingSeparator ? "./" : ".";
   }
-  if (trailingSeparator) path += "/";
+  if (trailingSeparator) {
+    path += "/";
+  }
 
   return isAbsolute ? `/${path}` : path;
 }
@@ -192,19 +206,24 @@ function normalizeString(path, allowAboveRoot, separator) {
   let dots = 0;
   let code = 0;
   for (let i = 0; i <= path.length; ++i) {
-    if (i < path.length) code = StringPrototypeCharCodeAt(path, i);
-    else if (isPathSeparator(code)) break;
-    else code = constants.CHAR_FORWARD_SLASH;
+    if (i < path.length) {
+      code = StringPrototypeCharCodeAt(path, i);
+    } else if (isPathSeparator(code)) {
+      break;
+    } else {
+      code =
+        constants.CHAR_FORWARD_SLASH;
+    }
 
     if (isPathSeparator(code)) {
       if (lastSlash === i - 1 || dots === 1) {
       } else if (dots === 2) {
         if (
           res.length < 2 ||
-          lastSegmentLength !== 2 ||
-          StringPrototypeCharCodeAt(res, res.length - 1) !==
-          constants.CHAR_DOT ||
-          StringPrototypeCharCodeAt(res, res.length - 2) !== constants.CHAR_DOT
+            lastSegmentLength !== 2 ||
+            StringPrototypeCharCodeAt(res, res.length - 1) !==
+            constants.CHAR_DOT ||
+            StringPrototypeCharCodeAt(res, res.length - 2) !== constants.CHAR_DOT
         ) {
           if (res.length > 2) {
             const lastSlashIndex = StringPrototypeLastIndexOf(res, separator);
@@ -214,7 +233,7 @@ function normalizeString(path, allowAboveRoot, separator) {
             } else {
               res = StringPrototypeSlice(res, 0, lastSlashIndex);
               lastSegmentLength =
-              res.length - 1 - StringPrototypeLastIndexOf(res, separator);
+                res.length - 1 - StringPrototypeLastIndexOf(res, separator);
             }
             lastSlash = i;
             dots = 0;
@@ -232,9 +251,12 @@ function normalizeString(path, allowAboveRoot, separator) {
           lastSegmentLength = 2;
         }
       } else {
-        if (res.length > 0)
+        if (res.length > 0) {
           res += `${separator}${StringPrototypeSlice(path, lastSlash + 1, i)}`;
-        else res = StringPrototypeSlice(path, lastSlash + 1, i);
+        } else {
+          res =
+            StringPrototypeSlice(path, lastSlash + 1, i);
+        }
         lastSegmentLength = i - lastSlash - 1;
       }
       lastSlash = i;
@@ -254,8 +276,8 @@ function normalizeString(path, allowAboveRoot, separator) {
  * @return { Promise }
  */
 function to<T, U = Error>(
-    promise: Promise<T>,
-    errorExt?: object
+  promise: Promise<T>,
+  errorExt?: object
 ): Promise<[U, undefined] | [null, T]> {
   return promise
     .then<[null, T]>((data: T) => [null, data])
@@ -269,4 +291,4 @@ function to<T, U = Error>(
     });
 }
 
-export { join, to }
+export { join, to };

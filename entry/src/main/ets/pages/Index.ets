@@ -12,28 +12,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import router from '@ohos.router'
+
+
+import router from "@ohos.router";
 
 
 @Entry
 @Component
 struct Index {
-  @State message: string = 'Hello World'
+  @State message: string = "Hello World";
 
   build() {
     Row() {
       Column() {
-        Button('sample page')
+        Button("sample page")
           .fontSize(14)
           .height(30)
           .margin({ left: 10, top: 50 })
           .fontWeight(FontWeight.Bold)
           .onClick(() => {
             router.pushUrl({
-              url: 'pages/SamplePage'
-            })
-          })
-        Button('press page')
+              url: "pages/SamplePage"
+            });
+          });
+        Button("press page")
           .fontSize(14)
           .height(30)
           .visibility(Visibility.Hidden)
@@ -41,14 +43,14 @@ struct Index {
           .fontWeight(FontWeight.Bold)
           .onClick(() => {
             router.pushUrl({
-              url: 'pages/PressPage'
-            })
-          })
+              url: "pages/PressPage"
+            });
+          });
       }
-      .width('100%')
-      .height('100%')
+      .width("100%")
+      .height("100%");
     }
-    .width('100%')
-    .height('100%')
+    .width("100%")
+    .height("100%");
   }
 }

@@ -12,18 +12,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
-import { FileInfo, FileType } from './FileInfo'
+
+
+import { FileInfo, FileType } from "./FileInfo";
 
 const enum FactHandlerResult {
   Continue = 1,
   IgnoreFile = 2
 }
 
-type FactHandler = (value: string, info: FileInfo) => FactHandlerResult | void
+type FactHandler = (value: string, info: FileInfo) => FactHandlerResult | void;
 
 function parseSize(value: string, info: FileInfo) {
-  info.size = parseInt(value, 10)
+  info.size = parseInt(value, 10);
 }
 
 /**
@@ -33,11 +34,11 @@ const factHandlersByName: { [key: string]: FactHandler } = {
   "size": parseSize, // File size
   "sizd": parseSize, // Directory size
   "unique": (value, info) => { // Unique identifier
-    info.uniqueID = value
+    info.uniqueID = value;
   },
   "modify": (value, info) => { // Modification date
-    info.modifiedAt = parseMLSxDate(value)
-    info.rawModifiedAt = info.modifiedAt.toISOString()
+    info.modifiedAt = parseMLSxDate(value);
+    info.rawModifiedAt = info.modifiedAt.toISOString();
   },
   "type": (value, info) => { // File type
     // There seems to be confusion on how to handle symbolic links for Unix. RFC 3659 doesn't describe
@@ -52,55 +53,59 @@ const factHandlersByName: { [key: string]: FactHandler } = {
     // - ProFTPD statement: http://www.proftpd.org/docs/modules/mod_facts.html
     // – FileZilla bug: https://trac.filezilla-project.org/ticket/9310
     if (value.startsWith("OS.unix=slink")) {
-      info.type = FileType.SymbolicLink
-      info.link = value.substr(value.indexOf(":") + 1)
-      return FactHandlerResult.Continue
+      info.type = FileType.SymbolicLink;
+      info.link = value.substr(value.indexOf(":") + 1);
+      return FactHandlerResult.Continue;
     }
     switch (value) {
       case "file":
-        info.type = FileType.File
-        break
+        info.type = FileType.File;
+        break;
       case "dir":
-        info.type = FileType.Directory
-        break
+        info.type = FileType.Directory;
+        break;
       case "OS.unix=symlink":
-        info.type = FileType.SymbolicLink
-      // The target of the symbolic link might be defined in another line in the directory listing.
-      // We'll handle this in `transformList()` below.
-        break
+        info.type = FileType.SymbolicLink;
+        // The target of the symbolic link might be defined in another line in the directory listing.
+        // We'll handle this in `transformList()` below.
+        break;
       case "cdir": // Current directory being listed
       case "pdir": // Parent directory
-        return FactHandlerResult.IgnoreFile // Don't include these entries in the listing
+        return FactHandlerResult.IgnoreFile; // Don't include these entries in the listing
       default:
-        info.type = FileType.Unknown
+        info.type = FileType.Unknown;
     }
-    return FactHandlerResult.Continue
+    return FactHandlerResult.Continue;
   },
   "unix.mode": (value, info) => { // Unix permissions, e.g. 0[1]755
-    const digits = value.substr(-3)
+    const digits = value.substr(-3);
     info.permissions = {
       user: parseInt(digits[0], 10),
       group: parseInt(digits[1], 10),
       world: parseInt(digits[2], 10)
-    }
+    };
   },
   "unix.ownername": (value, info) => { // Owner by name (preferred)
-    info.user = value
+    info.user = value;
   },
   "unix.owner": (value, info) => { // Owner by ID
-    if (info.user === undefined) info.user = value
+    if (info.user === undefined) {
+      info.user = value;
+    }
   },
   get "unix.uid"() {
-    return this["unix.owner"]
+    return this["unix.owner"];
   },
   "unix.groupname": (value, info) => { // Group by name (preferred)
-    info.group = value
+    info.group = value;
   },
   "unix.group": (value, info) => { // Group by ID
-    if (info.group === undefined) info.group = value
+    if (info.group === undefined) {
+      info.group = value;
+    }
   },
   get "unix.gid"() {
-    return this["unix.group"]
+    return this["unix.group"];
   }
   // Regarding the fact "perm":
   // We don't handle permission information stored in "perm" because its information is conceptually
@@ -112,17 +117,17 @@ const factHandlersByName: { [key: string]: FactHandler } = {
   // described here as they apply to FTP commands. They may not map easily into particular permissions
   // available on the server's operating system." The parser by Apache Commons tries to translate these
   // to Unix permissions – this is misleading users and might not even be correct.
-}
+};
 
 /**
  * Split a string once at the first position of a delimiter. For example
  * `splitStringOnce("a b c d", " ")` returns `["a", "b c d"]`.
  */
 function splitStringOnce(str: string, delimiter: string): [string, string] {
-  const pos = str.indexOf(delimiter)
-  const a = str.substr(0, pos)
-  const b = str.substr(pos + delimiter.length)
-  return [a, b]
+  const pos = str.indexOf(delimiter);
+  const a = str.substr(0, pos);
+  const b = str.substr(pos + delimiter.length);
+  return [a, b];
 }
 
 /**
@@ -132,62 +137,62 @@ function splitStringOnce(str: string, delimiter: string): [string, string] {
  * - Example 2: ` file name` (leading space)
  */
 export function testLine(line: string): boolean {
-  return /^\S+=\S+;/.test(line) || line.startsWith(" ")
+  return /^\S+=\S+;/.test(line) || line.startsWith(" ");
 }
 
 /**
  * Parse single line as MLSD listing, see specification at https://tools.ietf.org/html/rfc3659#section-7.
  */
 export function parseLine(line: string): FileInfo | undefined {
-  const [ packedFacts, name ] = splitStringOnce(line, " ")
+  const [packedFacts, name] = splitStringOnce(line, " ");
   if (name === "" || name === "." || name === "..") {
-    return undefined
+    return undefined;
   }
-  const info = new FileInfo(name)
-  const facts = packedFacts.split(";")
+  const info = new FileInfo(name);
+  const facts = packedFacts.split(";");
   for (const fact of facts) {
-    const [ factName, factValue ] = splitStringOnce(fact, "=")
+    const [factName, factValue] = splitStringOnce(fact, "=");
     if (!factValue) {
-      continue
+      continue;
     }
-    const factHandler = factHandlersByName[factName.toLowerCase()]
+    const factHandler = factHandlersByName[factName.toLowerCase()];
     if (!factHandler) {
-      continue
+      continue;
     }
-    const result = factHandler(factValue, info)
+    const result = factHandler(factValue, info);
     if (result === FactHandlerResult.IgnoreFile) {
-      return undefined
+      return undefined;
     }
   }
-  return info
+  return info;
 }
 
 export function transformList(files: FileInfo[]): FileInfo[] {
   // Create a map of all files that are not symbolic links by their unique ID
-  const nonLinksByID = new Map<string, FileInfo>()
+  const nonLinksByID = new Map<string, FileInfo>();
   for (const file of files) {
     if (!file.isSymbolicLink && file.uniqueID !== undefined) {
-      nonLinksByID.set(file.uniqueID, file)
+      nonLinksByID.set(file.uniqueID, file);
     }
   }
-  const resolvedFiles: FileInfo[] = []
+  const resolvedFiles: FileInfo[] = [];
   for (const file of files) {
     // Try to associate unresolved symbolic links with a target file/directory.
     if (file.isSymbolicLink && file.uniqueID !== undefined && file.link === undefined) {
-      const target = nonLinksByID.get(file.uniqueID)
+      const target = nonLinksByID.get(file.uniqueID);
       if (target !== undefined) {
-        file.link = target.name
+        file.link = target.name;
       }
     }
     // The target of a symbolic link is listed as an entry in the directory listing but might
     // have a path pointing outside of this directory. In that case we don't want this entry
     // to be part of the listing. We generally don't want these kind of entries at all.
-    const isPartOfDirectory = !file.name.includes("/")
+    const isPartOfDirectory = !file.name.includes("/");
     if (isPartOfDirectory) {
-      resolvedFiles.push(file)
+      resolvedFiles.push(file);
     }
   }
-  return resolvedFiles
+  return resolvedFiles;
 }
 
 /**
@@ -205,5 +210,5 @@ export function parseMLSxDate(fact: string): Date {
     +fact.slice(10, 12), // Minutes
     +fact.slice(12, 14), // Seconds
     +fact.slice(15, 18) // Milliseconds
-  ))
+  ));
 }

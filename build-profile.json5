@@ -1,20 +1,28 @@
 {
-  "app": { 
+  "app": {
     "products": [
       {
         "name": "default",
         "signingConfig": "default",
-        "compileSdkVersion": 10,
-        "compatibleSdkVersion": 9
-      }
-    ],
-    "buildModeSet":[
-      {
-      "name":"debug"
+        "compileSdkVersion": 13,
+        "compatibleSdkVersion": 10
       },
       {
-      "name":"release"
+        "name": "HarmonyOS",
+        "signingConfig": "default",
+        "compatibleSdkVersion": "5.0.1(13)",
+        "runtimeOS": "HarmonyOS",
       }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug"
+      },
+      {
+        "name": "release"
+      }
+    ],
+    "signingConfigs": [
     ]
   },
   "modules": [
@@ -25,7 +33,8 @@
         {
           "name": "default",
           "applyToProducts": [
-            "default"
+            "default",
+            "HarmonyOS"
           ]
         }
       ]

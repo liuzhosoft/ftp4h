@@ -12,6 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
 export enum FileType {
   Unknown = 0,
   File,
@@ -20,9 +22,9 @@ export enum FileType {
 }
 
 export interface UnixPermissions {
-  readonly user: number
-  readonly group: number
-  readonly world: number
+  readonly user: number;
+  readonly group: number;
+  readonly world: number;
 }
 
 /**
@@ -33,10 +35,10 @@ export class FileInfo {
     Read: 4,
     Write: 2,
     Execute: 1
-  }
+  };
 
-  type = FileType.Unknown
-  size = 0
+  type = FileType.Unknown;
+  size = 0;
   /**
    * Unparsed, raw modification date as a string.
    *
@@ -49,7 +51,7 @@ export class FileInfo {
    * unreliable. This library decides to offer parsed dates only when they're absolutely reliable and safe to
    * use e.g. for comparisons.
    */
-  rawModifiedAt = ""
+  rawModifiedAt = "";
   /**
    * Parsed modification date.
    *
@@ -57,47 +59,47 @@ export class FileInfo {
    * parsed with the correct timezone and a resolution down to seconds. See `rawModifiedAt` property for the unparsed
    * date that is always available.
    */
-  modifiedAt?: Date = undefined
+  modifiedAt?: Date = undefined;
   /**
    * Unix permissions if present. If the underlying FTP server is not running on Unix this will be undefined.
    * If set, you might be able to edit permissions with the FTP command `SITE CHMOD`.
    */
-  permissions?: UnixPermissions = undefined
+  permissions?: UnixPermissions = undefined;
   /**
    * Hard link count if available.
    */
-  hardLinkCount?: number = undefined
+  hardLinkCount?: number = undefined;
   /**
    * Link name for symbolic links if available.
    */
-  link?: string = undefined
+  link?: string = undefined;
   /**
    * Unix group if available.
    */
-  group?: string = undefined
+  group?: string = undefined;
   /**
    * Unix user if available.
    */
-  user?: string = undefined
+  user?: string = undefined;
   /**
    * Unique ID if available.
    */
-  uniqueID?: string = undefined
+  uniqueID?: string = undefined;
 
   constructor(public name: string) {
-    this.name = name
+    this.name = name;
   }
 
   get isDirectory(): boolean {
-    return this.type === FileType.Directory
+    return this.type === FileType.Directory;
   }
 
   get isSymbolicLink(): boolean {
-    return this.type === FileType.SymbolicLink
+    return this.type === FileType.SymbolicLink;
   }
 
   get isFile(): boolean {
-    return this.type === FileType.File
+    return this.type === FileType.File;
   }
 
   /**
@@ -105,14 +107,14 @@ export class FileInfo {
    * @deprecated
    */
   get date(): string {
-    return this.rawModifiedAt
+    return this.rawModifiedAt;
   }
 
   set date(rawModifiedAt: string) {
-    let  startTime1 = new Date().getTime();
-    this.rawModifiedAt = rawModifiedAt
+    let startTime1 = new Date().getTime();
+    this.rawModifiedAt = rawModifiedAt;
     let endTime1 = new Date().getTime();
     let averageTime1 = ((endTime1 - startTime1) * 1000) / 1;
-    console.log("BasicFtpTest : date averageTime : " + averageTime1 + "us")
+    console.log("BasicFtpTest : date averageTime : " + averageTime1 + "us");
   }
 }

@@ -13,61 +13,63 @@
  * limitations under the License.
  */
 
-import socket from '@ohos.net.socket';
-import { parseControlResponse } from './parseControlResponse'
-import { CharsetUtil, StringEncoding } from './StringEncoding'
-import { to } from './PathUtil'
-import buffer from '@ohos.buffer';
-import connection from '@ohos.net.connection';
-import { GBK } from "./gbk/gbk";
+
+import socket from "@ohos.net.socket";
+import { parseControlResponse } from "./parseControlResponse";
+import { CharsetUtil, StringEncoding } from "./StringEncoding";
+import { to } from "./PathUtil";
+import connection from "@ohos.net.connection";
 
 interface Task {
   /** Handles a response for a task. */
-  readonly responseHandler: ResponseHandler
+  readonly responseHandler: ResponseHandler;
+
   /** Resolves or rejects a task. */
-  readonly resolver: TaskResolver
+  readonly resolver: TaskResolver;
+
   /** Call stack when task was run. */
-  readonly stack: string
+  readonly stack: string;
 }
 
 export interface TaskResolver {
-  resolve(args: any): void
+  resolve(args: any): void;
 
-  reject(err: Error): void
+  reject(err: Error): void;
 }
 
 export interface FTPResponse {
   /** FTP response code */
-  readonly code: number
+  readonly code: number;
+
   /** Whole response including response code */
-  readonly message: string
+  readonly message: string;
 }
 
-export type ResponseHandler = (response: Error | FTPResponse, task: TaskResolver) => void
+export type ResponseHandler = (response: Error | FTPResponse, task: TaskResolver) => void;
 
 /**
  * Describes an FTP server error response including the FTP response code.
  */
 export class FTPError extends Error {
   /** FTP response code */
-  readonly code: number
+  readonly code: number;
 
   constructor(res: FTPResponse) {
-    super(res.message)
-    this.name = this.constructor.name
-    this.code = res.code
+    super(res.message);
+    this.name = this.constructor.name;
+    this.code = res.code;
   }
 }
 
-new Error()
+new Error();
 
 export class ClientError extends Error {
   /** FTP response code */
-  public code: string
+  public code: string;
 
   constructor(message?: string) {
-    super(message)
-    this.name = this.constructor.name
+    super(message);
+    this.name = this.constructor.name;
   }
 }
 
@@ -84,17 +86,17 @@ function doNothing() {
  */
 export class FTPContext {
   /** Debug-level logging of all socket communication. */
-  verbose = false
+  verbose = false;
   /** IP version to prefer (4: IPv4, 6: IPv6, undefined: automatic). */
-  ipFamily: number | undefined = undefined
+  ipFamily: number | undefined = undefined;
   /** Options for TLS connections. */
-  tlsOptions: socket.TLSConnectOptions = undefined
+  tlsOptions: socket.TLSConnectOptions = undefined;
   /** Current task to be resolved or rejected. */
-  protected _task: Task | undefined
+  protected _task: Task | undefined;
   /** A multiline response might be received as multiple chunks. */
-  protected _partialResponse = ""
+  protected _partialResponse = "";
   /** The reason why a context has been closed. */
-  protected _closingError: ClientError | undefined
+  protected _closingError: ClientError | undefined;
 
   /**
    * Instantiate an FTP context.
@@ -103,20 +105,20 @@ export class FTPContext {
    * @param encoding - Encoding to use for control connection. UTF-8 by default. Use "latin1" for older servers.
    */
   constructor(readonly timeout = 0, encoding: StringEncoding = "utf8") {
-    this._encoding = encoding
+    this._encoding = encoding;
     // Help Typescript understand that we do indeed set _socket in the constructor but use the setter method to do so.
-    this.tlsOptions = undefined
-    this._dataSocket = undefined
+    this.tlsOptions = undefined;
+    this._dataSocket = undefined;
   }
 
   /** Encoding supported by Node applied to commands, responses and directory listing data. */
-  protected _encoding: StringEncoding
+  protected _encoding: StringEncoding;
 
   /**
    * Get the currently used encoding.
    */
   get encoding(): StringEncoding {
-    return this._encoding
+    return this._encoding;
   }
 
   /**
@@ -126,20 +128,20 @@ export class FTPContext {
    * are supported by Node.
    */
   set encoding(encoding: StringEncoding) {
-    this._encoding = encoding
+    this._encoding = encoding;
     // if (this.socket) {
     //   this.socket.setEncoding(encoding)
     // }
   }
 
   /** FTP control connection */
-  protected _socket: socket.TCPSocket | socket.TLSSocket
+  protected _socket: socket.TCPSocket | socket.TLSSocket;
 
   /**
    * Get the FTP control socket.
    */
   get socket(): socket.TCPSocket | socket.TLSSocket {
-    return this._socket
+    return this._socket;
   }
 
   /**
@@ -148,17 +150,17 @@ export class FTPContext {
    */
   set socket(sockets: socket.TCPSocket | socket.TLSSocket) {
     // No data socket should be open in any case where the control socket is set or upgraded.
-    this.dataSocket = undefined
+    this.dataSocket = undefined;
     // This being a reset, reset any other state apart from the socket.
     // this.tlsOptions = undefined
-    this._partialResponse = ""
+    this._partialResponse = "";
     if (this._socket) {
       // const newSocketUpgradesExisting = sockets.localPort === this._socket.localPort TODO 无法获取本地绑定的端口号 只能判断两个对象是否为同一个
-      const newSocketUpgradesExisting = (sockets === this._socket)
+      const newSocketUpgradesExisting = (sockets === this._socket);
       if (newSocketUpgradesExisting) {
-        this._removeSocketListeners(this.socket)
+        this._removeSocketListeners(this.socket);
       } else {
-        this._closeControlSocket()
+        this._closeControlSocket();
       }
     }
     if (sockets) {
@@ -166,65 +168,65 @@ export class FTPContext {
       // why we also close any open data connection above. We can go one step further and reset
       // a possible closing error. That means that a closed FTPContext can be "reopened" by
       // setting a new control socket.
-      this._closingError = undefined
+      this._closingError = undefined;
       // Don't set a timeout yet. Timeout for control sockets is only active during a task, see handle() below.
       let extraOptions: socket.TCPExtraOptions = {
         keepAlive: false,
         socketTimeout: 0,
         reuseAddress: false,
         TCPNoDelay: true,
-      }
+      };
       sockets.setExtraOptions(extraOptions).catch((err) => {
-        throw err
-      })
+        throw err;
+      });
       sockets.on("message", data => {
         if (!this._encoding || this._encoding.length < 1) {
-          this._encoding = 'utf8'
+          this._encoding = "utf8";
         }
         if (data) {
           let serverData = CharsetUtil.decode(data.message, this.encoding);
-          this._onControlSocketData(serverData)
+          this._onControlSocketData(serverData);
         } else {
-          throw new Error('get data null')
+          throw new Error("get data null");
         }
-      })
+      });
       // Server sending a FIN packet is treated as an error.
       // sockets.on("end", () => this.closeWithError(new Error("Server sent FIN packet unexpectedly, closing connection."))) TODO 没有end回调
       // Control being closed without error by server is treated as an error.
       sockets.on("close", () => {
-        this.closeWithError(new ClientError("Server closed connection unexpectedly."))
-      })
-      this._setupDefaultErrorHandlers(sockets, "control socket")
+        this.closeWithError(new ClientError("Server closed connection unexpectedly."));
+      });
+      this._setupDefaultErrorHandlers(sockets, "control socket");
     }
-    this._socket = sockets
+    this._socket = sockets;
   }
 
   /** FTP data connection */
-  protected _dataSocket: socket.TCPSocket | socket.TLSSocket | undefined
+  protected _dataSocket: socket.TCPSocket | socket.TLSSocket | undefined;
 
   /**
    * Get the current FTP data connection if present.
    */
   get dataSocket(): socket.TCPSocket | socket.TLSSocket | undefined {
-    return this._dataSocket
+    return this._dataSocket;
   }
 
   /**
    * Set the socket for the data connection. This will automatically close the former data socket.
    */
   set dataSocket(socket: socket.TCPSocket | socket.TLSSocket | undefined) {
-    this._closeSocket(this._dataSocket)
+    this._closeSocket(this._dataSocket);
     if (socket) {
       // Don't set a timeout yet. Timeout data socket should be activated when data transmission starts
       // and timeout on control socket is deactivated.
       socket.setExtraOptions({
         socketTimeout: 0
       }).catch((err) => {
-        throw err
-      })
-      this._setupDefaultErrorHandlers(socket, "data socket")
+        throw err;
+      });
+      this._setupDefaultErrorHandlers(socket, "data socket");
     }
-    this._dataSocket = socket
+    this._dataSocket = socket;
   }
 
   /**
@@ -233,11 +235,11 @@ export class FTPContext {
   get closed(): boolean {
     // return this.socket.remoteAddress === undefined || this._closingError !== undefined
     try {
-      this.socket.getState()
+      this.socket.getState();
     } catch (err) {
       return true;
     }
-    return this._closingError !== undefined
+    return this._closingError !== undefined;
   }
 
   /**
@@ -245,7 +247,7 @@ export class FTPContext {
    * has already been negotiated.
    */
   get hasTLS(): boolean {
-    return "getCipherSuite" in this._socket
+    return "getCipherSuite" in this._socket;
   }
 
   /**
@@ -259,16 +261,16 @@ export class FTPContext {
     // case use _closingError to determine whether a context is closed. This also allows us to have a single code-path
     // for closing a context making the implementation easier.
     try {
-      const message = this._task ? "User closed client during task" : "User closed client"
-      const err = new ClientError(message)
-      await this.closeWithError(err)
+      const message = this._task ? "User closed client during task" : "User closed client";
+      const err = new ClientError(message);
+      await this.closeWithError(err);
       return new Promise(function (resolve, reject) {
-        resolve()
-      })
+        resolve();
+      });
     } catch (err) {
       return new Promise(function (resolve, reject) {
-        reject(err)
-      })
+        reject(err);
+      });
     }
   }
 
@@ -281,25 +283,25 @@ export class FTPContext {
     if (this._closingError) {
       let endTime1 = new Date().getTime();
       let averageTime1 = ((endTime1 - startTime1) * 1000) / 1;
-      console.log("BasicFtpTest : closeWithError averageTime : " + averageTime1 + "us")
+      console.log("BasicFtpTest : closeWithError averageTime : " + averageTime1 + "us");
       return new Promise(function (resolve, reject) {
-        resolve()
-      })
+        resolve();
+      });
     }
-    this._closingError = err
+    this._closingError = err;
     // Close the sockets but don't fully reset this context to preserve `this._closingError`.
-    await this._closeControlSocket()
-    await this._closeSocket(this._dataSocket)
+    await this._closeControlSocket();
+    await this._closeSocket(this._dataSocket);
     // Give the user's task a chance to react, maybe cleanup resources.
-    this._passToHandler(err)
+    this._passToHandler(err);
     // The task might not have been rejected by the user after receiving the error.
-    this._stopTrackingTask()
+    this._stopTrackingTask();
     let endTime1 = new Date().getTime();
     let averageTime1 = ((endTime1 - startTime1) * 1000) / 1;
-    console.log("BasicFtpTest : closeWithError averageTime : " + averageTime1 + "us")
+    console.log("BasicFtpTest : closeWithError averageTime : " + averageTime1 + "us");
     return new Promise(function (resolve, reject) {
-      resolve()
-    })
+      resolve();
+    });
   }
 
   /**
@@ -307,32 +309,34 @@ export class FTPContext {
    */
   async reset(): Promise<void> {
     let startTime0 = new Date().getTime();
-    this.socket = await this._newSocket()
+    this.socket = await this._newSocket();
     let endTime0 = new Date().getTime();
     let averageTime0 = ((endTime0 - startTime0) * 1000) / 1;
-    console.log("BasicFtpTest : socket 带参数接口时长 : " + averageTime0 + "us")
+    console.log("BasicFtpTest : socket 带参数接口时长 : " + averageTime0 + "us");
     return new Promise(function (resolve, reject) {
-      resolve()
-    })
+      resolve();
+    });
   }
 
   /**
    * Send an FTP command without waiting for or handling the result.
    */
   send(command: string): Promise<void> {
-    const containsPassword = command.startsWith("PASS")
-    const message = containsPassword ? "> PASS ###" : `> ${command}`
-    this.log(message)
-    if (!this._socket) throw new Error('socket can not be null')
-    if ('getCertificate' in this._socket) {
-      let tempSocket = this._socket as socket.TLSSocket
-      return tempSocket.send(command + "\r\n")
+    const containsPassword = command.startsWith("PASS");
+    const message = containsPassword ? "> PASS ###" : `> ${command}`;
+    this.log(message);
+    if (!this._socket) {
+      throw new Error("socket can not be null");
+    }
+    if ("getCertificate" in this._socket) {
+      let tempSocket = this._socket as socket.TLSSocket;
+      return tempSocket.send(command + "\r\n");
     } else {
-      let tempSocket = this._socket as socket.TCPSocket
+      let tempSocket = this._socket as socket.TCPSocket;
       return tempSocket.send({
         data: command + "\r\n",
         encoding: this.encoding
-      })
+      });
     }
 
   }
@@ -344,12 +348,11 @@ export class FTPContext {
   request(command: string): Promise<FTPResponse> {
     return this.handle(command, (res, task) => {
       if (res instanceof Error) {
-        task.reject(res)
+        task.reject(res);
+      } else {
+        task.resolve(res);
       }
-      else {
-        task.resolve(res)
-      }
-    })
+    });
   }
 
   /**
@@ -358,13 +361,14 @@ export class FTPContext {
    */
   handle(command: string | undefined, responseHandler: ResponseHandler): Promise<any> {
     if (this._task) {
-      const err = new ClientError("User launched a task while another one is still running. Forgot to use 'await' or '.then()'?")
-      err.stack += `\nRunning task launched at: ${this._task.stack}`
+      const err =
+        new ClientError("User launched a task while another one is still running. Forgot to use 'await' or '.then()'?");
+      err.stack += `\nRunning task launched at: ${this._task.stack}`;
       let startTime1 = new Date().getTime();
-      this.closeWithError(err)
+      this.closeWithError(err);
       let endTime1 = new Date().getTime();
       let averageTime1 = ((endTime1 - startTime1) * 1000) / 1;
-      console.log("BasicFtpTest : closeWithError averageTime : " + averageTime1 + "us")
+      console.log("BasicFtpTest : closeWithError averageTime : " + averageTime1 + "us");
       // Don't return here, continue with returning the Promise that will then be rejected
       // because the context closed already. That way, users will receive an exception where
       // they called this method by mistake.
@@ -375,37 +379,40 @@ export class FTPContext {
         responseHandler,
         resolver: {
           resolve: arg => {
-            this._stopTrackingTask()
-            resolveTask(arg)
+            this._stopTrackingTask();
+            resolveTask(arg);
           },
           reject: err => {
-            this._stopTrackingTask()
-            rejectTask(err)
+            this._stopTrackingTask();
+            rejectTask(err);
           }
         }
-      }
+      };
       if (this._closingError) {
         // This client has been closed. Provide an error that describes this one as being caused
         // by `_closingError`, include stack traces for both.
-        const err = new ClientError(`Client is closed because ${this._closingError.message}`) // Type 'Error' is not correctly defined, doesn't have 'code'.
-        err.stack += `${'\n'}Closing reason: ${this._closingError.stack}`
-        err.code = this._closingError.code !== undefined ? this._closingError.code : "0"
-        this._passToHandler(err)
-        return
+        const err =
+          new ClientError(`Client is closed because ${this._closingError.message}`); // Type 'Error' is not correctly defined, doesn't have 'code'.
+        err.stack += `${"\n"}Closing reason: ${this._closingError.stack}`;
+        err.code = this._closingError.code !== undefined ? this._closingError.code : "0";
+        this._passToHandler(err);
+        return;
       }
       // Only track control socket timeout during the lifecycle of a task. This avoids timeouts on idle sockets,
       // the default socket behaviour which is not expected by most users.
       // this.socket.setTimeout(this.timeout)
-      let [extraErr, extraInfo] = await to<void>(this.socket.setExtraOptions({ socketTimeout: 0 }))
-      if (extraErr) throw extraErr
+      let [extraErr, extraInfo] = await to<void>(this.socket.setExtraOptions({ socketTimeout: 0 }));
+      if (extraErr) {
+        throw extraErr;
+      }
       if (command) {
         let startTime1 = new Date().getTime();
-        this.send(command)
+        this.send(command);
         let endTime1 = new Date().getTime();
         let averageTime1 = ((endTime1 - startTime1) * 1000) / 1;
-        console.log("BasicFtpTest : send averageTime : " + averageTime1 + "us")
+        console.log("BasicFtpTest : send averageTime : " + averageTime1 + "us");
       }
-    })
+    });
   }
 
   /**
@@ -414,7 +421,7 @@ export class FTPContext {
   log(message: string) {
     if (this.verbose) {
       // tslint:disable-next-line no-console
-      console.log(message)
+      console.log(message);
     }
   }
 
@@ -426,52 +433,53 @@ export class FTPContext {
   async _newSocket(): Promise<socket.TCPSocket | socket.TLSSocket> {
     let tempSocket;
     if (this.tlsOptions) {
-      tempSocket = socket.constructTLSSocketInstance()
+      tempSocket = socket.constructTLSSocketInstance();
     } else {
       tempSocket = socket.constructTCPSocketInstance();
     }
-    let [netHandleErr, netHandle] = await to<connection.NetHandle>(connection.getDefaultNet())
+    let [netHandleErr, netHandle] = await to<connection.NetHandle>(connection.getDefaultNet());
     if (netHandleErr) {
       return new Promise(function (resolve, reject) {
-        reject(netHandleErr)
-      })
+        reject(netHandleErr);
+      });
     }
     if (!netHandle) {
       return new Promise(function (resolve, reject) {
-        reject(new Error('get Default Net is fail'))
-      })
+        reject(new Error("get Default Net is fail"));
+      });
     }
-    let [netSyncErr, netSyncInfo] = await to<connection.ConnectionProperties>(connection.getConnectionProperties(netHandle))
+    let [netSyncErr, netSyncInfo] =
+      await to<connection.ConnectionProperties>(connection.getConnectionProperties(netHandle));
     if (netSyncErr) {
       return new Promise(function (resolve, reject) {
-        reject(netSyncErr)
-      })
+        reject(netSyncErr);
+      });
     }
     if (!netSyncInfo || !netSyncInfo.linkAddresses || netSyncInfo.linkAddresses.length < 1
-    || !netSyncInfo.linkAddresses[0] || !netSyncInfo.linkAddresses[0].address) {
+      || !netSyncInfo.linkAddresses[0] || !netSyncInfo.linkAddresses[0].address) {
       return new Promise(function (resolve, reject) {
-        reject(new Error('get local ip is fail'))
-      })
+        reject(new Error("get local ip is fail"));
+      });
     }
 
     if (!tempSocket) {
       return new Promise(function (resolve, reject) {
-        reject(new Error('socket can not be null'))
-      })
+        reject(new Error("socket can not be null"));
+      });
     }
     let [bindErr, bindInfo] = await to<void>(tempSocket.bind({
       address: netSyncInfo.linkAddresses[0].address.address,
       port: 0,
       family: 1
-    }))
+    }));
     if (bindErr) {
       return new Promise(function (resolve, reject) {
-        reject(bindErr)
-      })
+        reject(bindErr);
+      });
     }
     return new Promise(function (resolve, reject) {
-      resolve(tempSocket)
-    })
+      resolve(tempSocket);
+    });
   }
 
   /**
@@ -481,14 +489,14 @@ export class FTPContext {
   protected _stopTrackingTask() {
     // Disable timeout on control socket if there is no task active.
     if (!this.socket) {
-      this._task = undefined
+      this._task = undefined;
       return;
     }
     this.socket.setExtraOptions({ socketTimeout: 0 }).then(() => {
     }).catch((err) => {
-      throw err
-    })
-    this._task = undefined
+      throw err;
+    });
+    this._task = undefined;
   }
 
   /**
@@ -497,18 +505,18 @@ export class FTPContext {
    * @protected
    */
   protected _onControlSocketData(chunk: string) {
-    this.log(`< ${chunk}`)
+    this.log(`< ${chunk}`);
     // This chunk might complete an earlier partial response.
-    const completeResponse = this._partialResponse + chunk
-    const parsed = parseControlResponse(completeResponse)
+    const completeResponse = this._partialResponse + chunk;
+    const parsed = parseControlResponse(completeResponse);
     // Remember any incomplete remainder.
-    this._partialResponse = parsed.rest
+    this._partialResponse = parsed.rest;
     // Each response group is passed along individually.
     for (const message of parsed.messages) {
-      const code = parseInt(message.substr(0, 3), 10)
-      const response = { code, message }
-      const err = code >= 400 ? new FTPError(response) : undefined
-      this._passToHandler(err ? err : response)
+      const code = parseInt(message.substr(0, 3), 10);
+      const response = { code, message };
+      const err = code >= 400 ? new FTPError(response) : undefined;
+      this._passToHandler(err ? err : response);
     }
   }
 
@@ -519,7 +527,7 @@ export class FTPContext {
    */
   protected _passToHandler(response: Error | FTPResponse) {
     if (this._task) {
-      this._task.responseHandler(response, this._task.resolver)
+      this._task.responseHandler(response, this._task.resolver);
     }
     // Errors other than FTPError always close the client. If there isn't an active task to handle the error,
     // the next one submitted will receive it using `_closingError`.
@@ -555,29 +563,29 @@ export class FTPContext {
   public async _closeControlSocket(): Promise<void> {
     if (!this._socket) {
       return new Promise(function (resolve, reject) {
-        resolve()
-      })
+        resolve();
+      });
     }
-    this._removeSocketListeners(this._socket)
+    this._removeSocketListeners(this._socket);
     // this._socket.on("error", doNothing)
-    let [stateErr, stateInfo] = await to<socket.SocketStateBase>(this._socket.getState())
+    let [stateErr, stateInfo] = await to<socket.SocketStateBase>(this._socket.getState());
     if (stateErr) {
       return new Promise(function (resolve, reject) {
-        reject(stateErr)
-      })
+        reject(stateErr);
+      });
     }
     if (!stateInfo) {
       return new Promise(function (resolve, reject) {
-        reject(new ClientError('get state fail'))
-      })
+        reject(new ClientError("get state fail"));
+      });
     }
     if (stateInfo.isConnected) {
-      await this.send("QUIT")
+      await this.send("QUIT");
     }
-    await this._closeSocket(this._socket)
+    await this._closeSocket(this._socket);
     return new Promise(function (resolve, reject) {
-      resolve()
-    })
+      resolve();
+    });
   }
 
   /**
@@ -586,38 +594,41 @@ export class FTPContext {
    */
   public async _closeSocket(socket: socket.TCPSocket | socket.TLSSocket | undefined): Promise<void> {
     if (socket) {
-      this._removeSocketListeners(socket)
+      this._removeSocketListeners(socket);
       // socket.on("error", doNothing)
       // socket.on("timeout", () => socket.destroy())
       // socket.setTimeout(this.timeout)
       // socket.end()
-      let [closeErr, closeInfo] = await to<void>(socket.close())
+      let [closeErr, closeInfo] = await to<void>(socket.close());
       if (closeErr) {
         return new Promise(function (resolve, reject) {
-          reject(closeErr)
-        })
+          reject(closeErr);
+        });
       }
       socket = undefined;
       return new Promise(function (resolve, reject) {
-        resolve()
-      })
-    }else{
+        resolve();
+      });
+    } else {
       return new Promise(function (resolve, reject) {
-        resolve()
-      })
+        resolve();
+      });
     }
   }
 
   public async closeOldSocket(socket: socket.TCPSocket | socket.TLSSocket | undefined) {
     if (socket) {
-      socket.off('connect');
-      socket.off('message');
-      socket.off('error');
-      let [closeErr, closeInfo] = await to<void>(socket.close())
-      if (closeErr) throw closeErr
-      socket.off('close');
+      socket.off("connect");
+      socket.off("message");
+      socket.off("error");
+      let [closeErr, closeInfo] = await to<void>(socket.close());
+      if (closeErr) {
+        throw closeErr;
+      }
+      socket.off("close");
     }
   }
+
   /**
    * Remove all default listeners for socket.
    * @protected
@@ -625,15 +636,17 @@ export class FTPContext {
   protected _removeSocketListeners(socket: socket.TCPSocket | socket.TLSSocket) {
     socket.off("connect", (data) => {
 
-    })
+    });
     socket.off("message", (data) => {
 
-    })
+    });
     socket.off("error", (err) => {
-      if (err) throw err
-    })
+      if (err) {
+        throw err;
+      }
+    });
     socket.off("close", () => {
 
-    })
+    });
   }
 }

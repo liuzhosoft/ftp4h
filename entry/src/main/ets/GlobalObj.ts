@@ -13,12 +13,13 @@
  * limitations under the License.
  */
 
-import common from '@ohos.app.ability.common'
+
+import common from "@ohos.app.ability.common";
 
 
 export default class GlobalObj {
-  private CONTEXT_STR: string = 'getContext';
-  private CLIENT_STR: string = 'getClient';
+  private CONTEXT_STR: string = "getContext";
+  private CLIENT_STR: string = "getClient";
   private static instance: GlobalObj;
   private _objects = new Map<string, Object | null>();
 
@@ -28,16 +29,17 @@ export default class GlobalObj {
 
   public static getInstance(): GlobalObj {
     if (!GlobalObj.instance) {
-      GlobalObj.instance = new GlobalObj()
+      GlobalObj.instance = new GlobalObj();
     }
     return GlobalObj.instance;
   }
 
   getContext(): common.UIAbilityContext | null {
-    return this._objects?.get(this.CONTEXT_STR) ? this._objects?.get(this.CONTEXT_STR) as common.UIAbilityContext : null
+    return this._objects?.get(this.CONTEXT_STR) ? this._objects?.get(this.CONTEXT_STR) as common.UIAbilityContext :
+      null;
   }
 
   setContext(objectClass: common.UIAbilityContext): void {
-    this._objects?.set(this.CONTEXT_STR, objectClass)
+    this._objects?.set(this.CONTEXT_STR, objectClass);
   }
-}
+};

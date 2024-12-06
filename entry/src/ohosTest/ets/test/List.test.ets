@@ -12,9 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
-import BasicFtpTest from './BasicFtp.test'
+
+import BasicFtpTest from "./BasicFtp.test";
 
 export default function testsuite() {
-  BasicFtpTest()
+  BasicFtpTest();
 }

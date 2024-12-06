@@ -12,46 +12,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
-import socket from '@ohos.net.socket';
 
-export type ProgressType = "upload" | "download" | "list"
+
+import socket from "@ohos.net.socket";
+
+export type ProgressType = "upload" | "download" | "list";
 
 /**
  * Describes progress of file transfer.
  */
 export interface ProgressInfo {
   /** A name describing this info, e.g. the filename of the transfer. */
-  readonly name: string
+  readonly name: string;
+
   /** The type of transfer, typically "upload" or "download". */
-  readonly type: ProgressType
+  readonly type: ProgressType;
+
   /** Transferred bytes in current transfer. */
-  readonly bytes: number
+  readonly bytes: number;
+
   /** Transferred bytes since last counter reset. Useful for tracking multiple transfers. */
-  readonly bytesOverall: number
+  readonly bytesOverall: number;
 }
 
-export type ProgressHandler = (info: ProgressInfo) => void
+export type ProgressHandler = (info: ProgressInfo) => void;
 
 /**
  * Tracks progress of one socket data transfer at a time.
  */
 export class ProgressTracker {
-  bytesOverall = 0
-  protected readonly intervalMs = 500
-  protected onStop: (stopWithUpdate: boolean) => void = noop
-  protected onHandle: ProgressHandler = noop
-  private bytesRead: number = 0
-  private bytesWritten: number = 0
-  private cacheName: string = undefined
-  private cacheType: ProgressType = undefined
+  bytesOverall = 0;
+  protected readonly intervalMs = 500;
+  protected onStop: (stopWithUpdate: boolean) => void = noop;
+  protected onHandle: ProgressHandler = noop;
+  private bytesRead: number = 0;
+  private bytesWritten: number = 0;
+  private cacheName: string = undefined;
+  private cacheType: ProgressType = undefined;
 
   public setBytesRead(read: number) {
-    this.bytesRead = read
+    this.bytesRead = read;
     const ctx = this;
     if (ctx.cacheType && ctx.cacheType == "list") {
       ctx.bytesRead = 0;
-      return
+      return;
     }
     if (read > 0 && ctx.cacheName && ctx.cacheType && this.onHandle) {
       this.onHandle({
@@ -59,7 +63,7 @@ export class ProgressTracker {
         type: ctx.cacheType,
         bytes: (ctx.bytesRead + ctx.bytesWritten),
         bytesOverall: ctx.bytesOverall
-      })
+      });
     }
   }
 
@@ -68,11 +72,11 @@ export class ProgressTracker {
   }
 
   public setBytesWritten(write: number) {
-    this.bytesWritten = write
+    this.bytesWritten = write;
     const ctx = this;
     if (ctx.cacheType && ctx.cacheType == "list") {
       ctx.bytesWritten = 0;
-      return
+      return;
     }
     if (write > 0 && ctx.cacheName && ctx.cacheType && this.onHandle) {
       this.onHandle({
@@ -80,18 +84,19 @@ export class ProgressTracker {
         type: ctx.cacheType,
         bytes: (ctx.bytesRead + ctx.bytesWritten),
         bytesOverall: ctx.bytesOverall
-      })
+      });
     }
   }
 
   public getBytesWritten() {
     return this.bytesWritten;
   }
+
   /**
    * Register a new handler for progress info. Use `undefined` to disable reporting.
    */
   reportTo(onHandle: ProgressHandler = noop) {
-    this.onHandle = onHandle
+    this.onHandle = onHandle;
   }
 
   /**
@@ -102,30 +107,30 @@ export class ProgressTracker {
    * @param type  The type of the transfer, typically "upload" or "download".
    */
   start(socket: socket.TCPSocket | socket.TLSSocket, name: string, type: ProgressType) {
-    let lastBytes = 0
+    let lastBytes = 0;
     this.cacheName = name;
     this.cacheType = type;
     this.onStop = poll(this.intervalMs, () => {
-      const bytes = this.bytesRead + this.bytesWritten
-      this.bytesOverall += bytes - lastBytes
-      lastBytes = bytes
+      const bytes = this.bytesRead + this.bytesWritten;
+      this.bytesOverall += bytes - lastBytes;
+      lastBytes = bytes;
       if (this.onHandle) {
         this.onHandle({
           name,
           type,
           bytes,
           bytesOverall: this.bytesOverall
-        })
+        });
       }
 
-    })
+    });
   }
 
   /**
    * Stop tracking transfer progress.
    */
   stop() {
-    this.onStop(false)
+    this.onStop(false);
   }
 
   /**
@@ -134,7 +139,7 @@ export class ProgressTracker {
   updateAndStop() {
     this.cacheName = undefined;
     this.cacheType = undefined;
-    this.onStop(true)
+    this.onStop(true);
   }
 }
 
@@ -143,17 +148,17 @@ export class ProgressTracker {
  * immediately. The function returns a function to stop the polling.
  */
 function poll(intervalMs: number, updateFunc: () => void): (stopWithUpdate: boolean) => void {
-  const id = setInterval(updateFunc, intervalMs)
+  const id = setInterval(updateFunc, intervalMs);
   const stopFunc = (stopWithUpdate: boolean) => {
-    clearInterval(id)
+    clearInterval(id);
     if (stopWithUpdate) {
-      updateFunc()
+      updateFunc();
     }
     // Prevent repeated calls to stop calling handler.
-    updateFunc = noop
-  }
-  updateFunc()
-  return stopFunc
+    updateFunc = noop;
+  };
+  updateFunc();
+  return stopFunc;
 }
 
 function noop() { /*Do nothing*/

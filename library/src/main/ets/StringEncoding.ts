@@ -12,8 +12,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
+/*
+ * @author liuzho - 添加gbk编码支持
+ */
+
 import { GBK } from "./gbk/gbk";
-import { buffer } from "@kit.ArkTS";
+import buffer from "@ohos.buffer";
 
 export type StringEncoding =
   "utf8" | "ascii" | "utf-8" | "utf16le" | "ucs2" | "ucs-2" |

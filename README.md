@@ -2,8 +2,7 @@
 
 ## 简介
 
-ftp4h (ftp for Harmony)
-是适用于HarmonyOS的ftp客户端，上游项目来自[BasicFtp](https://gitee.com/openharmony-tpc/openharmony_tpc_samples/tree/master/BasicFtp)
+ftp4h (ftp for Harmony) 是适用于HarmonyOS的ftp客户端
 
 ## 下载安装
 
@@ -59,9 +58,11 @@ OpenHarmony ohpm
 
 ## 贡献代码
 
-使用过程中发现任何问题都可以提 [Issue]，当然，也非常欢迎发 [PR]共建。
+使用过程中发现任何问题都可以提 Issue，当然，也非常欢迎发 PR 共建。
 
 ## 开源协议
 
 本项目基于 [MIT License](./LICENSE)
-，请自由地享受和参与开源。
+
+
+上游项目来自 [BasicFtp](https://gitee.com/openharmony-tpc/openharmony_tpc_samples/tree/master/BasicFtp)，开源协议为 [MIT License](https://gitee.com/openharmony-tpc/openharmony_tpc_samples/blob/master/BasicFtp/LICENSE)

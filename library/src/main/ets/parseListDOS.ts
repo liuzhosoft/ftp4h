@@ -12,8 +12,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
-import { FileInfo, FileType } from './FileInfo'
+
+
+import { FileInfo, FileType } from "./FileInfo";
 
 /**
  * This parser is based on the FTP client library source code in Apache Commons Net provided
@@ -24,9 +25,9 @@ import { FileInfo, FileType } from './FileInfo'
 
 const RE_LINE = new RegExp(
   "(\\S+)\\s+(\\S+)\\s+" // MM-dd-yy whitespace hh:mma|kk:mm swallow trailing spaces
-  + "(?:(<DIR>)|([0-9]+))\\s+" // <DIR> or ddddd swallow trailing spaces
-  + "(\\S.*)" // First non-space followed by rest of line (name)
-)
+    + "(?:(<DIR>)|([0-9]+))\\s+" // <DIR> or ddddd swallow trailing spaces
+    + "(\\S.*)"// First non-space followed by rest of line (name)
+);
 
 /**
  * Returns true if a given line might be a DOS-style listing.
@@ -34,35 +35,34 @@ const RE_LINE = new RegExp(
  * - Example: `12-05-96  05:03PM       <DIR>          myDir`
  */
 export function testLine(line: string): boolean {
-  return /^\d{2}/.test(line) && RE_LINE.test(line)
+  return /^\d{2}/.test(line) && RE_LINE.test(line);
 }
 
 /**
  * Parse a single line of a DOS-style directory listing.
  */
 export function parseLine(line: string): FileInfo | undefined {
-  const groups = line.match(RE_LINE)
+  const groups = line.match(RE_LINE);
   if (groups === null) {
-    return undefined
+    return undefined;
   }
-  const name = groups[5]
+  const name = groups[5];
   if (name === "." || name === "..") { // Ignore parent directory links
-    return undefined
+    return undefined;
   }
-  const file = new FileInfo(name)
-  const fileType = groups[3]
+  const file = new FileInfo(name);
+  const fileType = groups[3];
   if (fileType === "<DIR>") {
-    file.type = FileType.Directory
-    file.size = 0
+    file.type = FileType.Directory;
+    file.size = 0;
+  } else {
+    file.type = FileType.File;
+    file.size = parseInt(groups[4], 10);
   }
-  else {
-    file.type = FileType.File
-    file.size = parseInt(groups[4], 10)
-  }
-  file.rawModifiedAt = groups[1] + " " + groups[2]
-  return file
+  file.rawModifiedAt = groups[1] + " " + groups[2];
+  return file;
 }
 
 export function transformList(files: FileInfo[]): FileInfo[] {
-  return files
+  return files;
 }

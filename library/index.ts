@@ -13,18 +13,19 @@
  * limitations under the License.
  */
 
-export * from "./src/main/ets/Client"
 
-export * from "./src/main/ets/FtpContext"
+export * from "./src/main/ets/Client";
 
-export * from "./src/main/ets/FileInfo"
+export * from "./src/main/ets/FtpContext";
 
-export * from "./src/main/ets/parseList"
+export * from "./src/main/ets/FileInfo";
 
-export * from "./src/main/ets/StringEncoding"
+export * from "./src/main/ets/parseList";
 
-export { to } from "./src/main/ets/PathUtil"
+export * from "./src/main/ets/StringEncoding";
 
-export { join } from './src/main/ets/PathUtil'
+export { to } from "./src/main/ets/PathUtil";
 
-export { enterPassiveModeIPv4, enterPassiveModeIPv6 } from "./src/main/ets/transfer"
+export { join } from "./src/main/ets/PathUtil";
+
+export { enterPassiveModeIPv4, enterPassiveModeIPv6 } from "./src/main/ets/transfer";
