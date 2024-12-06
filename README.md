@@ -2,7 +2,7 @@
 
 ## 简介
 
-ftp4h (ftp for Harmony) 是适用于HarmonyOS的ftp客户端
+ftp4h (ftp for Harmony) 是适用于Harmony的ftp客户端
 
 ## 下载安装
 

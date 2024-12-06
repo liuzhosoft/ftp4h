@@ -2,7 +2,7 @@
   "modelVersion": "5.0.1",
   "name": "ftp4h",
   "version": "1.0.0",
-  "description": "适用于HarmonyOS的ftp客户端",
+  "description": "适用于Harmony的ftp客户端",
   "main": "",
   "author": "",
   "license": "",

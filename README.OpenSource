@@ -6,6 +6,6 @@
         "Version Number": "v1.0.0",
         "Owner": "liuxiaobin@liuzhosoft.com",
         "Upstream URL": "https://gitee.com/openharmony-tpc/openharmony_tpc_samples/tree/master/BasicFtp",
-        "Description": "适用于HarmonyOS的ftp客户端"
+        "Description": "适用于Harmony的ftp客户端"
     }
 ]
