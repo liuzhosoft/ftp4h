@@ -1,14 +1,14 @@
 {
-  "name": "BasicFtp",
-  "version": "1.0.1",
-  "description": "This is an FTP client library for Node.js. It supports FTPS over TLS, Passive Mode over IPv6, has a Promise-based API, and offers methods to operate on whole directories.",
+  "modelVersion": "5.0.1",
+  "name": "ftp4h",
+  "version": "1.0.0",
+  "description": "适用于HarmonyOS的ftp客户端",
   "main": "",
   "author": "",
   "license": "",
   "dependencies": {
   },
   "devDependencies": {
-    "@ohos/hypium": "1.0.6"
+    "@ohos/hypium": "1.0.15"
   },
-  "modelVersion": ""
 }

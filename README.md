@@ -1,604 +1,67 @@
+## ftp4h
 
+## 简介
 
-## BasicFtp
+ftp4h (ftp for Harmony)
+是适用于HarmonyOS的ftp客户端，上游项目来自[BasicFtp](https://gitee.com/openharmony-tpc/openharmony_tpc_samples/tree/master/BasicFtp)
 
-## Introduction
+## 下载安装
 
-BasicFtp is a client that supports FTP and FTPS transfer protocols.
-
-## How to Install
-
-```javascript
-ohpm install @ohos/basic-ftp
+```shell
+ohpm
+install @liuzhosoft/ftp4h
 ```
 
 OpenHarmony ohpm
-For details about the OpenHarmony ohpm environment configuration, see [OpenHarmony HAR](https://gitee.com/openharmony-tpc/docs/blob/master/OpenHarmony_har_usage.en.md).
+环境配置等更多内容，请参考[如何安装 OpenHarmony ohpm 包](https://gitee.com/openharmony-tpc/docs/blob/master/OpenHarmony_har_usage.md)
 
-## How to Use
+## 使用说明
 
-Note: Globally search *xxx* in the project and replace them with the actual email address, account password, and server address. To test FTPS encrypted transfers, you need to place a self-signed certificate in **src/main/resources/rawfile** and replace the certificate name of **loginServer** in the **SamplePage.ets** file with the self-signed certificate name.
+注意：全局搜索项目中的‘xxx’，需要替换修改为真实的邮箱，账号密码,服务器地址。
+如需测试ftps加密传输，需要提前准备好自签名证书放置于src/main/resources/rawfile文件夹下，同时替换SamplePage.ets文件的loginServer方法的证书名称。
 
-```
-import { AccessOptions, FileInfo, FileType, FTPResponse, UnixPermissions } from '@ohos/basic-ftp'
-import buffer from '@ohos.buffer'
-import socket from '@ohos.net.socket';
-import NoTlsUtil from '../utils/FtpApiUtil'
-```
+### 示例
 
+## 接口说明
 
-### Logging In to the FTP Server
+| 接口名             | 参数             | 返回值                 | 说明                            |
+|-----------------|----------------|---------------------|-------------------------------|
+| access          | AccessOptions  | FTPResponse         | 登录FTP服务器                      |
+| list            | string         | FileInfo            | 获取文件列表                        |
+| size            | string         | number              | 获取文件大小                        |
+| uploadFrom      | string, string | FTPResponse         | 上传文件                          |
+| downloadTo      | string, string | FTPResponse         | 下载文件                          |
+| features        | 无              | Map<string, string> | 获取服务器能力                       |
+| cd              | string         | FTPResponse         | 设置工作目录                        |
+| cdup            | 无              | FTPResponse         | 从当前工作目录切换到父目录                 |
+| remove          | string         | FTPResponse         | 删除文件                          |
+| lastMod         | string         | Date                | 获取最后修改的时间                     |
+| pwd             | 无              | string              | 获取当前目录                        |
+| ensureDir       | string         | void                | 确认远程是否存在目录，不存在则会自动创建          |
+| removeEmptyDir  | string         | FTPResponse         | 删除选择的文件夹，文件夹不为空则会失败报错         |
+| removeDir       | string         | void                | 删除选择的文件夹中所有子文件夹和文件，同时删除选择的文件夹 |
+| clearWorkingDir | 无              | void                | 清空当前文件夹中所有子文件夹和文件，但是保留当前的文件夹  |
+| rename          | string, string | FTPResponse         | 重命名文件                         |
+| uploadFromDir   | string, string | void                | 上传目录                          |
+| downloadToDir   | string, string | void                | 下载目录                          |
 
-  ```javascript
-	var loginInfo: AccessOptions = null
-    let option: socket.TLSConnectOptions = {
-    	ALPNProtocols: ["spdy/1", "http/1.1"],
-    	address: {
-     	 	address: '',
-     	 	port: 50000,
-      	 	family: 1
-   		 },
-    	secureOptions: {
-     		 key: '',
-      		 cert: '',
-      		 ca: [''],
-      		 password: '',
-      		 protocols: [socket.Protocol.TLSv12, socket.Protocol.TLSv13],
-     		 useRemoteCipherPrefer: true,
-      		 signatureAlgorithms: "rsa_pss_rsae_sha256:ECDSA+SHA256",
-     		 cipherSuite: "AES256-SHA256"
-    	}
-  	}
-	// FTPS with a certificate supports implicit TLS encryption transmission.
-    if (ctx.secure) {
-      loginInfo = {
-        host: 'x.x.x.x',
-        user: 'xxxxx',
-        port: 'xx',
-        password: 'xxx',
-        secure: 'implicit',
-        secureOptions: option
-      }
-    } else {
-        // FTP without a certificate.
-      loginInfo = {
-        host: 'x.x.x.x',
-        user: 'xxxxx',
-        port: 'xx',
-        password: 'xxx',
-        secure: false,
-        secureOptions: undefined
-      }
-    }
-  
-  ftpUtil.doLogin(loginInfo, {
-        onLoginStart(info) {
-        },
-        onLoginSuccess(result) {        
-        },
-        onLoginErr(err: Error) {
-        }
-      })
-       
-  ```
+## 约束与限制
 
-### Obtaining the File List
+在下述版本验证通过：
 
-```javascript
-if (ftpUtil) {
-        if (!ftpUtil.getLogin()) {
-          return;
-        }
-        let startTime1 = new Date().getTime();
-        ftpUtil.getCurrentDirectory({
-          currentDirectoryErr(err: Error) {
-          },
-          currentDirectoryStart(info) {
-          },
-          currentDirectorySuccess(msg) {
-            remoteRoot = msg
-            let listName = '';
-            if (remoteRoot == '' || remoteRoot == '\\' || remoteRoot == '/') {
-              listName = ''
-            } else {
-              listName = msg
-            }
-            ftpUtil.getList(listName, {
-              getListErr(err: Error) {
-              },
-              getListStart(info) {
-              },
-              getListSuccess(result: FileInfo[]) {
-               
-              }
-            })
+本库当前支持ftp被动模式，不支持主动模式；支持FTP,隐式tls加密的FTPS。
 
-          }
-        })
-}
-```
+本库支持MLSD、Unix、DOS格式的目录列表解析。
 
-### Uploading a Single File
+本库支持@ohos.file.fs模块支持的文件类型。
 
-  ```javascript
-if (ftpUtil) {
-        if (!ftpUtil.getLogin()) {
-          operationType = ''
-          return
-        }
-        if (!localUploadFilePath || localUploadFilePath.length < 1) {
-          operationType = ''
-          return
-        }
-        if (!remoteRoot || remoteRoot.length < 1) {
-          operationType = ''
-          return
-        }
-        inputValue = "clientToServer.txt"
-        if (!inputValue || inputValue.length < 1) {
-          operationType = ''
-          return
-        }
-        ftpUtil.uploadSingleFile(localUploadFilePath, inputValue, {
-          uploadErr(err: Error) {
-          },
-          uploadStart(info) {
-          },
-          uploadSuccess(msg: FTPResponse) {
-            
-          },
-          uploadProgress(currentSize: number, totalSize: number) {
-          }
-        })
-}
-  ```
+本库支持Binary模式传输数据。
 
-### Uploading a Folder
+## 贡献代码
 
-```javascript
- if (ftpUtil) {
-        if (!ftpUtil.getLogin()) {
-          operationType = ''
-          return
-        }
-        if (!localUploadFileDir || localUploadFileDir.length < 1) {
-          operationType = ''
-          return
-        }
-        if (!remoteRoot || remoteRoot.length < 1) {
-          operationType = ''
-          return
-        }
-        inputValue = "client"
-        if (!inputValue || inputValue.length < 1) {
-          operationType = ''
-          return
-        }
-        let regex = new RegExp(`^(?!_)(?!.*?_$)[a-zA-Z0-9_u4e00-u9fa5]+$`); // Regular expression.
-        if (!regex.test(inputValue)) {
-          operationType = ''
-          return
-        }
-        ftpUtil.uploadDir(localUploadFileDir, inputValue, {
-          uploadDirErr(err: Error) {
-          },
-          uploadDirStart(info) {
-          },
-          uploadDirSuccess(msg) {
-          },
-          uploadDirProgress(currentSize: number, totalSize: number) {
-          }
-        })
-}
-```
+使用过程中发现任何问题都可以提 [Issue]，当然，也非常欢迎发 [PR]共建。
 
-### Downloading a Single File
+## 开源协议
 
-```javascript
- if (ftpUtil) {
-        if (!ftpUtil.getLogin()) {
-          return
-        }
-        if (!remoteRoot || remoteRoot.length < 1) {
-          return
-        }
-        selectFilePath = "clientToServer.txt";
-        if (!selectFilePath || selectFilePath.length < 1) {
-          return
-        }
-        ftpUtil.downloadSingleFile(localPath, selectFilePath, {
-          downloadErr(err: Error) {
-            expect(0).assertEqual(1)
-            done()
-          },
-          downloadStart(info) {
-          },
-          downloadSuccess(msg: FTPResponse) {
-          },
-          downloadProgress(currentSize: number, totalSize: number) {
-          }
-        })
-}
-```
-
-### Downloading a Folder
-
-```javascript
-  if (ftpUtil) {
-          if (!ftpUtil.getLogin()) {
-            return
-          }
-          remoteRoot="/"
-          if (!remoteRoot || remoteRoot.length < 1) {
-            return
-          }
-          selectDirPath = "client"
-          if (!selectDirPath || selectDirPath.length < 1) {
-            return
-          }
-          ftpUtil.downloadDir(localDir, selectDirPath, {
-            downloadDirErr(err: Error) {
-            },
-            downloadDirStart(info) {
-            },
-            downloadDirSuccess(msg) {
-             
-            },
-            downloadDirProgress(currentSize: number, totalSize: number) {
-            }
-          })
-}
-```
-
-### Obtaining the File Size
-
-```javascript
-if (ftpUtil) {
-        if (!ftpUtil.getLogin()) {
-          return
-        }
-        if (!remoteRoot || remoteRoot.length < 1) {
-          return
-        }
-        selectFilePath = "clientToServer.txt";
-        if (!selectFilePath || selectFilePath.length < 1) {
-          return
-        }
-        ftpUtil.getFileSize(selectFilePath, {
-          getSizeErr(err: Error) {
-          },
-          getSizeStart(info) {
-          },
-          getSizeSuccess(result: number) {
-          }
-        })
-}
-```
-### Obtaining Server Capabilities
-
-```javascript
- if (ftpUtil) {
-        if (!ftpUtil.getLogin()) {
-          return
-        }
-        ftpUtil.getServerFeatures({
-          featuresErr(err: Error) {
-          },
-          featuresStart(info) {
-          },
-          featuresSuccess(msg: Map<string, string>) {
-          }
-        })
-}
-```
-### Obtaining the Last Modification Time
-
-```javascript
- if (ftpUtil) {
-        if (!ftpUtil.getLogin()) {
-          return
-        }
-        if (!remoteRoot || remoteRoot.length < 1) {
-          return
-        }
-        selectFilePath = "clientToServer.txt";
-
-        if (!selectFilePath || selectFilePath.length < 1) {
-          return
-        }
-        ftpUtil.getLastModify(selectFilePath, {
-          lastModifyErr(err: Error) {
-          },
-          lastModifyStart(info) {
-          },
-          lastModifySuccess(msg: Date) {
-          }
-        })
- }
-```
-### Renaming a File
-
-```javascript
-  if (ftpUtil) {
-          if (!ftpUtil.getLogin()) {
-            operationType = ''
-            return
-          }
-          if (!remoteRoot || remoteRoot.length < 1) {
-            operationType = ''
-            return
-          }
-
-          inputValue = "clientToServerNew.txt"
-          if (!inputValue || inputValue.length < 1) {
-            operationType = ''
-            return
-          }
-          selectFilePath = "clientToServer.txt";
-
-          if (!selectFilePath || selectFilePath.length < 1) {
-            return
-          }
-          ftpUtil.renameFile(inputValue, selectFilePath, {
-            renameFileErr(err: Error) {
-            },
-            renameFileStart(info) {
-              operationType = ''
-            },
-            renameFileSuccess(result: FTPResponse) {
-            }
-          })
-        }
-```
-### Switching the Directory
-
-```javascript
-  if (ftpUtil) {
-        if (!ftpUtil.getLogin()) {
-          return
-        }
-        if (!remoteRoot || remoteRoot.length < 1) {
-          return
-        }
-        ftpUtil.cdToParentDirectory({
-          cdToParentDirectoryErr(err: Error) {
-
-          },
-          cdToParentDirectoryStart(info) {
-          },
-          cdToParentDirectorySuccess(res: FTPResponse) {
-            
-          }
-        })
-  }
-```
-### Confirming the Remote Path
-
-```javascript
-  if (ftpUtil) {
-        if (!ftpUtil.getLogin()) {
-          operationType = ''
-          return
-        }
-        if (!remoteRoot || remoteRoot.length < 1) {
-          operationType = ''
-          return
-        }
-        inputValue = "client"
-        if (!inputValue || inputValue.length < 1) {
-          operationType = ''
-          return
-        }
-        let regex = new RegExp(`^(?!_)(?!.*?_$)[a-zA-Z0-9_u4e00-u9fa5]+$`); // Regular expression.
-        if (!regex.test(inputValue)) {
-          operationType = ''
-          return
-        }
-        ftpUtil.ensureRemotePath(inputValue, {
-          ensureRemotePathErr(err: Error) {
-          
-          },
-          ensureRemotePathStart(info) {
-          },
-          ensureRemotePathSuccess(result) {
-           
-          }
-        })
-      }
-```
-### Deleting an Empty Directory
-
-```javascript
-if (ftpUtil) {
-        if (!ftpUtil.getLogin()) {
-          return
-        }
-        remoteRoot="/"
-        if (!remoteRoot || remoteRoot.length < 1) {
-          return
-        }
-        selectDirPath = "/testempty"
-        if (!selectDirPath || selectDirPath.length < 1) {
-          return
-        }
-        let startTime1 = new Date().getTime();
-        ftpUtil.deleteEmptyDirectory(selectDirPath, {
-          deleteEmptyDirectoryErr(err: Error) {
-
-          },
-          deleteEmptyDirectoryStart(info) {
-          },
-          deleteEmptyDirectorySuccess(result: FTPResponse) {
-           
-          }
-        })
-      }
-```
-### Deleting a Single File
-
-```javascript
- if (ftpUtil) {
-          if (!ftpUtil.getLogin()) {
-            return
-          }
-          remoteRoot="/"
-          if (!remoteRoot || remoteRoot.length < 1) {
-            return
-          }
-          selectFilePath = "/clientToServerNew.txt";
-
-          if (!selectFilePath || selectFilePath.length < 1) {
-            return
-          }
-          ftpUtil.deleteFile(selectFilePath, {
-            deleteFileErr(err: Error) {
-            },
-            deleteFileStart(info) {
-            },
-            deleteFileSuccess(msg: FTPResponse) {
-            }
-          })
-}
-```
-
-### Deleting All Files
-
-```javascript
-  if (ftpUtil) {
-        if (!ftpUtil.getLogin()) {
-          return
-        }
-        remoteRoot="/"
-        if (!remoteRoot || remoteRoot.length < 1) {
-          return
-        }
-        selectDirPath="/deleteAll"
-        if (!selectDirPath || selectDirPath.length < 1) {
-          return
-        }
-        let startTime1 = new Date().getTime();
-        ftpUtil.deleteAll(selectDirPath, {
-          deleteAllErr(err: Error) {
-
-          },
-          deleteAllStart(info) {
-          },
-          deleteAllSuccess(result) {
-           
-          }
-        })
-      }
-```
-
-### Deleting All Files in the Current Directory
-
-```javascript
-  if (ftpUtil) {
-        if (!ftpUtil.getLogin()) {
-          return
-        }
-        remoteRoot="/"
-        if (!remoteRoot || remoteRoot.length < 1) {
-          return
-        }
-        remoteChildPath="/deleteSelfBuf"
-        let startTime1 = new Date().getTime();
-        ftpUtil.setWorkingDirectory(remoteChildPath, {
-          setWorkingDirectoryErr(err: Error) {
-   
-          },
-          setWorkingDirectoryStart(info) {
-          },
-          setWorkingDirectorySuccess(result: FTPResponse) {
-            ftpUtil.deleteAllButSelf({
-              deleteAllButSelfErr(err: Error) {
-       
-              },
-              deleteAllButSelfStart(info) {
-              },
-              deleteAllButSelfSuccess(result) {
-
-              }
-            })
-          }
-        })
-      }
-```
-
-### Setting a Working Directory
-
-```javascript
-   if (ftpUtil) {
-        if (!ftpUtil.getLogin()) {
-          return
-        }
-        remoteRoot="/"
-        if (!remoteRoot || remoteRoot.length < 1) {
-          return
-        }
-        remoteChildPath="/client"
-        if (!remoteChildPath || remoteChildPath.length < 1) {
-          return
-        }
-        ftpUtil.setWorkingDirectory(remoteChildPath, {
-          setWorkingDirectoryErr(err: Error) {
-
-          },
-          setWorkingDirectoryStart(info) {
-          },
-          setWorkingDirectorySuccess(result: FTPResponse) {
-
-          }
-        })
-  }
-```
-
-## Available APIs
-
-
-
-| API              | Parameters                            | Return Value               | Description                                      |
-| ----------------- | ------------------------------ | ------------------ | ---------------------------------------- |
-| access    | AccessOptions                   | FTPResponse | Logs in to the FTP server.|
-| list     | string                 | FileInfo | Obtains the file list.      |
-| size | string                  | number | Obtains the file size.                      |
-| uploadFrom    | string, string                  | FTPResponse | Uploads a file.                      |
-| downloadTo   | string, string                 | FTPResponse | Downloads a file.                      |
-| features       | NA| Map<string, string> | Obtains server capabilities.|
-| cd             | string                             | FTPResponse | Sets a working directory.                           |
-| cdup               | NA                           | FTPResponse | Switches from the current working directory to the parent directory.            |
-| remove               | string                            | FTPResponse | Removes a file.                         |
-| lastMod               | string                            | Date | Obtains the last modification time.                         |
-| pwd               | NA                           | string | Obtains the current directory.                         |
-| ensureDir               | string                            | void | Checks whether the remote directory exists. If the directory does not exist, it will be created.               |
-| removeEmptyDir               | string                            | FTPResponse | Removes the selected folder. If the folder is not empty, an error is reported.      |
-| removeDir               | string                            | void | Removes the selected folder and all subfolders and files in it. |
-| clearWorkingDir               | NA                           | void | Removes all folders and files in the current working directory, but retains the directory itself. |
-| rename               | string, string                            | FTPResponse | Renames a file.                         |
-| uploadFromDir               | string, string                            | void | Uploads a directory.                         |
-| downloadToDir               | string, string                            | void | Downloads a directory.                         |
-
-
-## Constraints
-This project has been verified in the following versions:
-DevEco Studio: NEXT Beta1-5.0.3.806, SDK: API12 Release(5.0.0.66)
-DevEco Studio: 4.0 Release (4.0.3.413), SDK: (4.0.10.3)
-
-Currently, the library supports the FTP passive mode and FTPS with implicit TLS encryption, the parsing of directory lists in MLSD, Unix, and DOS formats, the file types supported by the **@ohos.file.fs** module, and data transmission in binary mode.
-
-## Directory Structure
-
-```javascript
-|---- BasicFtp  
-|     |---- entry  # Sample code
-|     |---- BasicFtp  # BasicFtp library
-|     |---- README.MD  # Readme                  
-```
-
-## How to Contribute
-
-If you find any problem when using the project, submit an [issue](https://gitee.com/openharmony-tpc/openharmony_tpc_samples/issues) or a [PR](https://gitee.com/openharmony-tpc/openharmony_tpc_samples/pulls).
-
-## License
-
-This project is licensed under [MIT](https://gitee.com/openharmony-tpc/openharmony_tpc_samples/blob/master/BasicFtp/LICENSE.txt).
+本项目基于 [MIT License](./LICENSE)
+，请自由地享受和参与开源。

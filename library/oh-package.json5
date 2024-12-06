@@ -1,8 +1,8 @@
 {
-  "name": "basic-ftp",
-  "description": "This is an FTP client library for Node.js. It supports FTPS over TLS, Passive Mode over IPv6, has a Promise-based API, and offers methods to operate on whole directories.",
+  "name": "library",
+  "description": "ftp4h (ftp for Harmony) 是适用于HarmonyOS的ftp客户端",
   "main": "index.ts",
-  "author": "ohos_tpc",
+  "author": "LiuZho Soft",
   "license": "MIT",
   "dependencies": {},
   "types": "",
@@ -17,8 +17,8 @@
     "org": "opensource"
   },
   "type": "module",
-  "repository": "https://gitee.com/openharmony-tpc/openharmony_tpc_samples/tree/master/BasicFtp",
-  "version": "1.0.2",
+  "repository": "https://github.com/liuzhosoft/BasicFtpHarmony",
+  "version": "1.0.0",
   "devDependencies": {
   }
 }
