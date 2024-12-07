@@ -53,7 +53,7 @@
       ]
     },
     {
-      "name": "library",
+      "name": "library_ftp4h",
       "srcPath": "./library"
     }
   ]

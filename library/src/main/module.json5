@@ -1,6 +1,6 @@
 {
   "module": {
-    "name": "library",
+    "name": "library_ftp4h",
     "type": "har",
     "deviceTypes": [
       "default"
