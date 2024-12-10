@@ -62,7 +62,7 @@ OpenHarmony ohpm
 
 ## 开源协议
 
-本项目基于 [MIT License](./LICENSE)
+本项目基于 [MIT License](../LICENSE)
 
 
 上游项目来自 [BasicFtp](https://gitee.com/openharmony-tpc/openharmony_tpc_samples/tree/master/BasicFtp)，开源协议为 [MIT License](https://gitee.com/openharmony-tpc/openharmony_tpc_samples/blob/master/BasicFtp/LICENSE)
