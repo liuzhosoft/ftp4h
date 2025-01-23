@@ -849,7 +849,7 @@ export class FtpClient {
         reject(downloadToErr);
       });
     }
-    outputStream.closeSync();
+    await outputStream.close();
 
     let buff = new ArrayBuffer(8192);
     let [statErr, total] = await to<fs.Stat>(fs.stat(tempPath));
@@ -907,9 +907,9 @@ export class FtpClient {
       readSize += readLen;
     }
     this.ftp.log(text);
-    inputStream.flushSync();
-    inputStream.closeSync();
-    fs.unlinkSync(tempPath);
+    await inputStream.flush();
+    await inputStream.close();
+    await fs.unlink(tempPath);
     return this.parseList(text);
   }
 
