@@ -7,19 +7,19 @@ ftp4h (ftp for Harmony) 是适用于Harmony的ftp客户端
 ## 下载安装
 
 ```shell
-ohpm
-install @liuzhosoft/ftp4h
+ohpm install @liuzhosoft/ftp4h
 ```
-
-OpenHarmony ohpm
-环境配置等更多内容，请参考[如何安装 OpenHarmony ohpm 包](https://gitee.com/openharmony-tpc/docs/blob/master/OpenHarmony_har_usage.md)
 
 ## 使用说明
 
 注意：全局搜索项目中的‘xxx’，需要替换修改为真实的邮箱，账号密码,服务器地址。
 如需测试ftps加密传输，需要提前准备好自签名证书放置于src/main/resources/rawfile文件夹下，同时替换SamplePage.ets文件的loginServer方法的证书名称。
 
-### 示例
+## 注意事项
+
+- **download接口建议放在IO线程**
+
+  在网速非常快的环境中下载大文件，会造成UI线程的阻塞以及内存溢出
 
 ## 接口说明
 
@@ -58,11 +58,11 @@ OpenHarmony ohpm
 
 ## 贡献代码
 
-使用过程中发现任何问题都可以提 Issue，当然，也非常欢迎发 PR 共建。
+我们期望得到更多的问题反馈，以及积极的PR
 
 ## 开源协议
 
 本项目基于 [MIT License](./LICENSE)
 
-
-上游项目来自 [BasicFtp](https://gitee.com/openharmony-tpc/openharmony_tpc_samples/tree/master/BasicFtp)，开源协议为 [MIT License](https://gitee.com/openharmony-tpc/openharmony_tpc_samples/blob/master/BasicFtp/LICENSE)
+上游项目来自 [BasicFtp](https://gitee.com/openharmony-tpc/openharmony_tpc_samples/tree/master/BasicFtp)
+，开源协议为 [MIT License](https://gitee.com/openharmony-tpc/openharmony_tpc_samples/blob/master/BasicFtp/LICENSE)

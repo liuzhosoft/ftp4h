@@ -78,21 +78,15 @@ export class FtpClient {
   readonly ftp: FTPContext;
   /** Tracks progress of data transfers. */
   protected _progressTracker: ProgressTracker;
-  private context;
+  readonly cacheDir: string;
 
   /**
    * Instantiate an FTP client.
    *
    * @param timeout  Timeout in milliseconds, use 0 for no timeout. Optional, default is 30 seconds.
    */
-  constructor(uiContext: any, timeout = 30000) {
-    if (!uiContext) {
-      throw new Error("context can not be null");
-    }
-    if (!uiContext.cacheDir) {
-      throw new Error("uiContext is not a Context object");
-    }
-    this.context = uiContext;
+  constructor(cacheDir: string, timeout = 30000) {
+    this.cacheDir = cacheDir;
     this.ftp = new FTPContext(timeout);
     this.prepareTransfer = this._enterFirstCompatibleMode([enterPassiveModeIPv6, enterPassiveModeIPv4]);
     this.parseList = parseListAutoDetect;
@@ -808,15 +802,16 @@ export class FtpClient {
 
   /**
    * @protected
+   * ????为什么要写到本地文件里？？？？？
    */
   protected async _requestListWithCommand(command: string): Promise<FileInfo[]> {
-    if (!this.context || !this.context.cacheDir) {
+    if (!this.cacheDir) {
       return new Promise(function (resolve, reject) {
         reject(new Error("can not cache temp data because not set global context"));
       });
     }
 
-    let tempPath = this.context.cacheDir + "/" + (new Date().getTime()) + ".temp";
+    let tempPath = this.cacheDir + "/" + (new Date().getTime()) + ".temp";
     let [outputStreamErr, outputStream] = await to<fs.Stream>(fs.createStream(tempPath, "a+"));
     if (outputStreamErr) {
       return new Promise(function (resolve, reject) {

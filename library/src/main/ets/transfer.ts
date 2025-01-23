@@ -508,6 +508,10 @@ async function connectToDataSocket(config: TransferConfig): Promise<socket.TCPSo
   return dataSocket;
 };
 
+/**
+ * 建议放到IO线程调用:
+ * 网速太快的时候下载大文件会造成UI线程阻塞-内存溢出
+ */
 export async function downloadTo(
   destination: fs.Stream,
   config: TransferConfig,
@@ -547,7 +551,6 @@ export async function downloadTo(
 
   let receivedSize = 0;
   cacheData!.listenData((data) => {
-    // TODO 网速太快的时候下载大文件会造成卡死，放到子线程看看？调用方来放？
     const off = (config.startAt ?? 0) + receivedSize;
     // config.ftp.log(`ftp4h: transfer[${config.command}] received data[${data.byteLength}] total=${receivedSize} offset=${off}`);
     receivedSize += data.byteLength;
