@@ -16,7 +16,7 @@
 
 import fs from "@ohos.file.fs";
 import socket from "@ohos.net.socket";
-import { UploadOptions } from "./Client";
+import { FtpReadStream, FtpWriteStream, UploadOptions } from "./Client";
 import { describeAddress, describeTLS, ipIsPrivateV4Address } from "./netUtils";
 import { ClientError, FTPContext, FTPResponse, TaskResolver } from "./FtpContext";
 import { ProgressTracker, ProgressType } from "./ProgressTracker";
@@ -374,7 +374,7 @@ export interface TransferConfig {
 
 
 export async function uploadFrom(
-  source: fs.Stream,
+  source: FtpReadStream,
   config: TransferConfig,
   options: UploadOptions,
   errCallback: Function
@@ -415,7 +415,6 @@ export async function uploadFrom(
         }
         config.ftp.log(`Uploading to ${addressInfo} (${tlsInfo})`);
         resolver.onDataStart(config.remotePath, config.type);
-        let readBuffer: ArrayBuffer = new ArrayBuffer(8192);
         try {
           dataSocket.on("error", err => {
             resolver.onError(task, err);
@@ -427,28 +426,8 @@ export async function uploadFrom(
             if (readLen === Number.MAX_VALUE) {
               readLen = 0;
             }
-            let start = options.localStart + readSize;
-            let end = options.localEndInclusive;
-
-            let lastSize = 0;
-            if (start + readBuffer.byteLength > end) {
-              lastSize = end - start;
-              if (lastSize > readBuffer.byteLength) {
-                lastSize = 0;
-              }
-            }
-
-            if (lastSize > 0) {
-              readLen = await source.read(readBuffer, {
-                offset: start,
-                length: lastSize
-              });
-            } else {
-              readLen = await source.read(readBuffer, {
-                offset: start
-              });
-            }
-            await source.flush();
+            const readBuffer = await source.read();
+            readLen = readBuffer.byteLength;
             if (readLen <= 0) {
               break;
             }
@@ -460,10 +439,7 @@ export async function uploadFrom(
               await localTlsSocket.send(data);
             } else {
               let localTlsSocket = dataSocket as socket.TCPSocket;
-              await localTlsSocket.send({
-                data: trueData,
-                encoding: config.ftp.encoding ? config.ftp.encoding : "utf8"
-              });
+              await localTlsSocket.send({ data: trueData });
             }
             readSize += readLen;
             if (config && config.tracker) {
@@ -513,7 +489,7 @@ async function connectToDataSocket(config: TransferConfig): Promise<socket.TCPSo
  * 网速太快的时候下载大文件会造成UI线程阻塞-内存溢出
  */
 export async function downloadTo(
-  destination: fs.Stream,
+  destination: FtpWriteStream,
   config: TransferConfig,
   errCallback: Function
 ): Promise<FTPResponse> {
@@ -551,10 +527,10 @@ export async function downloadTo(
 
   let receivedSize = 0;
   cacheData!.listenData((data) => {
-    const off = (config.startAt ?? 0) + receivedSize;
+    // const off = (config.startAt ?? 0) + receivedSize;
     // config.ftp.log(`ftp4h: transfer[${config.command}] received data[${data.byteLength}] total=${receivedSize} offset=${off}`);
     receivedSize += data.byteLength;
-    destination.writeSync(data, { offset: off, length: data.byteLength });
+    destination.writeSync(data);
     destination.flushSync();
     config.tracker?.setBytesRead(0);
     config.tracker?.setBytesWritten(receivedSize + cache);
@@ -581,6 +557,14 @@ export async function downloadTo(
         let lastSizeChangedAt = Date.now();
         const monitor = async () => {
           config.ftp.log("ftp4h: transferMonitor: check once");
+          if (dataSocket) {
+            const state = await dataSocket.getState()
+            if (state.isClose) {
+              config.ftp.log("ftp4h: transferMonitor: close monitor because socket closed");
+              resolve();
+              return;
+            }
+          }
           const errInfo = cacheData.getErrorInfo();
           if (errInfo) {
             config.ftp.log(`ftp4h: transferMonitor: received error: ${JSON.stringify(errInfo)}`);

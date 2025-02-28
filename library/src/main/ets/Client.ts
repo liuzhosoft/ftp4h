@@ -30,6 +30,18 @@ import { CharsetUtil, StringEncoding } from "./StringEncoding";
 
 const BASE_COUNT = 1;
 
+export interface FtpReadStream {
+  read(): Promise<ArrayBuffer>;
+
+  close(): void;
+}
+
+export interface FtpWriteStream {
+  writeSync(buf: ArrayBuffer): number;
+
+  flushSync(): void;
+}
+
 export interface AccessOptions {
   /** Host the client should connect to. Optional, default is "localhost". */
   readonly host?: string;
@@ -540,7 +552,7 @@ export class FtpClient {
    * @param source  Readable stream or path to a local file.
    * @param toRemotePath  Path to a remote file to write to.
    */
-  async uploadFrom(source: fs.Stream | string, toRemotePath: string,
+  async uploadFrom(source: FtpReadStream | string, toRemotePath: string,
     options: UploadOptions = {}): Promise<FTPResponse> {
     return this._uploadWithCommand(source, toRemotePath, "STOR", options);
   }
@@ -552,7 +564,7 @@ export class FtpClient {
    * @param source  Readable stream or path to a local file.
    * @param toRemotePath  Path to a remote file to write to.
    */
-  async appendFrom(source: fs.Stream | string, toRemotePath: string,
+  async appendFrom(source: FtpReadStream | string, toRemotePath: string,
     options: UploadOptions = {}): Promise<FTPResponse> {
     let startTime1 = new Date().getTime();
     let result = this._uploadWithCommand(source, toRemotePath, "APPE", options);
@@ -565,7 +577,7 @@ export class FtpClient {
   /**
    * @protected
    */
-  protected async _uploadWithCommand(source: fs.Stream | string, remotePath: string, command: UploadCommand,
+  protected async _uploadWithCommand(source: FtpReadStream | string, remotePath: string, command: UploadCommand,
     options: UploadOptions): Promise<FTPResponse> {
     if (typeof source === "string") {
       return this._uploadLocalFile(source, remotePath, command, options);
@@ -578,13 +590,7 @@ export class FtpClient {
    */
   protected async _uploadLocalFile(localPath: string, remotePath: string, command: UploadCommand,
     options: UploadOptions): Promise<FTPResponse> {
-    const [sourceErr, source] = await to<fs.Stream>(fs.createStream(localPath, "a+"));
-    if (sourceErr) {
-      throw sourceErr;
-    }
-    if (!source) {
-      throw new Error("createStream fail");
-    }
+    const source = new FsSteamToFtpReadStreamAdapter(localPath);
     const [statErr, stat] = await to<fs.Stat>(fs.stat(localPath));
     if (statErr) {
       throw statErr;
@@ -608,26 +614,14 @@ export class FtpClient {
     try {
       return await this._uploadFromStream(source, remotePath, command, options);
     } finally {
-      let [err, closeInfo] = await to<void>(ignoreError(() => {
-        if (source) {
-          return source.close();
-        } else {
-          return new Promise(function (resolve, reject) {
-            reject("source is null,close fail");
-          });
-        }
-      })
-      );
-      if (err) {
-        throw err;
-      }
+      source.close();
     }
   }
 
   /**
    * @protected
    */
-  protected async _uploadFromStream(source: fs.Stream, remotePath: string, command: UploadCommand,
+  protected async _uploadFromStream(source: FtpReadStream, remotePath: string, command: UploadCommand,
     options: UploadOptions): Promise<FTPResponse> {
     let onError = (err: ClientError) => this.ftp.closeWithError(err);
     try {
@@ -678,11 +672,15 @@ export class FtpClient {
    * @param fromRemotePath  Path of the remote file to read from.
    * @param startAt  Position within the remote file to start downloading at. If the destination is a file, this offset is also applied to it.
    */
-  async downloadTo(destination: fs.Stream | string, fromRemotePath: string, startAt = 0, fileSize: number = 0) {
+  async downloadTo(destination: FtpWriteStream | string, fromRemotePath: string, startAt = 0, fileSize: number = 0) {
     if (typeof destination === "string") {
       return this._downloadToFile(destination, fromRemotePath, startAt);
     }
     return this._downloadToStream(destination, fromRemotePath, startAt, fileSize);
+  }
+
+  async closeDataStream() {
+    await this.ftp.send("ABOR")
   }
 
   /**
@@ -739,7 +737,7 @@ export class FtpClient {
   /**
    * @protected
    */
-  protected async _downloadToStream(destination: fs.Stream, remotePath: string, startAt: number,
+  protected async _downloadToStream(destination: FtpWriteStream, remotePath: string, startAt: number,
     fileSize: number = 0): Promise<FTPResponse> {
     let onError = (err: ClientError) => this.ftp.closeWithError(err);
     try {
@@ -762,7 +760,7 @@ export class FtpClient {
         onError = null;
       }
       if (destination) {
-        await destination.flush();
+        destination.flushSync();
       }
     }
   }
@@ -1158,28 +1156,28 @@ export class FtpClient {
    * DEPRECATED, use `uploadFrom`.
    * @deprecated
    */
-  async upload(source: fs.Stream | string, toRemotePath: string, options: UploadOptions = {}): Promise<FTPResponse> {
-    this.ftp.log("Warning: upload() has been deprecated, use uploadFrom().");
-    return this.uploadFrom(source, toRemotePath, options);
-  }
+  // async upload(source: fs.Stream | string, toRemotePath: string, options: UploadOptions = {}): Promise<FTPResponse> {
+  //   this.ftp.log("Warning: upload() has been deprecated, use uploadFrom().");
+  //   return this.uploadFrom(source, toRemotePath, options);
+  // }
 
   /**
    * DEPRECATED, use `appendFrom`.
    * @deprecated
    */
-  async append(source: fs.Stream | string, toRemotePath: string, options: UploadOptions = {}): Promise<FTPResponse> {
-    this.ftp.log("Warning: append() has been deprecated, use appendFrom().");
-    return this.appendFrom(source, toRemotePath, options);
-  }
+  // async append(source: fs.Stream | string, toRemotePath: string, options: UploadOptions = {}): Promise<FTPResponse> {
+  //   this.ftp.log("Warning: append() has been deprecated, use appendFrom().");
+  //   return this.appendFrom(source, toRemotePath, options);
+  // }
 
   /**
    * DEPRECATED, use `downloadTo`.
    * @deprecated
    */
-  async download(destination: fs.Stream | string, fromRemotePath: string, startAt = 0) {
-    this.ftp.log("Warning: download() has been deprecated, use downloadTo().");
-    return this.downloadTo(destination, fromRemotePath, startAt);
-  }
+  // async download(destination: fs.Stream | string, fromRemotePath: string, startAt = 0) {
+  //   this.ftp.log("Warning: download() has been deprecated, use downloadTo().");
+  //   return this.downloadTo(destination, fromRemotePath, startAt);
+  // }
 
   /**
    * DEPRECATED, use `uploadFromDir`.
@@ -1240,6 +1238,30 @@ async function ignoreError<T>(func: () => Promise<T | undefined>) {
   } catch (err) {
     // Ignore
     return undefined;
+  }
+}
+
+export class FsSteamToFtpReadStreamAdapter implements FtpReadStream {
+  private path: string;
+  private fsStream?: fs.Stream;
+  private buffer = new ArrayBuffer(1024 * 1024);
+
+  constructor(path: string) {
+    this.path = path;
+  }
+
+  async read(): Promise<ArrayBuffer> {
+    if (!this.fsStream) {
+      const file = await fs.open(this.path, fs.OpenMode.READ_ONLY);
+      this.fsStream = await fs.fdopenStream(file.fd, "r")
+    }
+    const readLen = await this.fsStream.read(this.buffer);
+    return this.buffer.slice(0, readLen);
+  }
+
+  close(): void {
+    this.fsStream?.close();
+    this.fsStream = undefined;
   }
 }
 
