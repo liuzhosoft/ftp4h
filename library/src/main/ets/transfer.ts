@@ -534,6 +534,9 @@ export async function downloadTo(
     destination.flushSync();
     config.tracker?.setBytesRead(0);
     config.tracker?.setBytesWritten(receivedSize + cache);
+    if(config.fileSize && receivedSize >= config.fileSize) {
+      release();
+    }
   });
 
   const release = () => {
