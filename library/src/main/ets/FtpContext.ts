@@ -333,12 +333,11 @@ export class FTPContext {
     }
     if ("getCertificate" in this._socket) {
       let tempSocket = this._socket as socket.TLSSocket;
-      return tempSocket.send(command + "\r\n");
+      return tempSocket.send(CharsetUtil.encode(command + "\r\n", this.encoding));
     } else {
       let tempSocket = this._socket as socket.TCPSocket;
       return tempSocket.send({
-        data: command + "\r\n",
-        encoding: this.encoding
+        data:CharsetUtil.encode(command + "\r\n", this.encoding)
       });
     }
 

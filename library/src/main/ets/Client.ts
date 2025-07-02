@@ -353,7 +353,13 @@ export class FtpClient {
     this.availableListCommands = supportsMLSD ? LIST_COMMANDS_MLSD : LIST_COMMANDS_DEFAULT;
     await this.send("TYPE I"); // Binary mode
     await this.sendIgnoringError("STRU F"); // Use file structure
-    await this.sendIgnoringError("OPTS UTF8 ON"); // Some servers expect UTF-8 to be enabled explicitly and setting before login might not have worked.
+    const supportUTF8 = features.has("UTF8") || features.has("UTF-8");
+    if(supportUTF8) {
+      const utf8Resp = await this.sendIgnoringError("OPTS UTF8 ON"); // Some servers expect UTF-8 to be enabled explicitly and setting before login might not have worked.
+      if(utf8Resp.code == 200) {
+        this.ftp.encoding = "utf8";
+      }
+    }
     if (supportsMLSD) {
       await this.sendIgnoringError("OPTS MLST type;size;modify;unique;unix.mode;unix.owner;unix.group;unix.ownername;unix.groupname;"); // Make sure MLSD listings include all we can parse
     }
@@ -398,21 +404,21 @@ export class FtpClient {
       }
       // Set UTF-8 on before login in case there are non-ascii characters in user or password.
       // Note that this might not work before login depending on server.
-      let startTime1 = new Date().getTime();
-      await this.sendIgnoringError("OPTS UTF8 ON");
-      let endTime1 = new Date().getTime();
-      let averageTime1 = ((endTime1 - startTime1) * 1000) / BASE_COUNT;
-      console.log("BasicFtpTest : sendIgnoringError averageTime : " + averageTime1 + "us");
-      let startTime2 = new Date().getTime();
+      // let startTime1 = new Date().getTime();
+      // await this.sendIgnoringError("OPTS UTF8 ON");
+      // let endTime1 = new Date().getTime();
+      // let averageTime1 = ((endTime1 - startTime1) * 1000) / BASE_COUNT;
+      // console.log("BasicFtpTest : sendIgnoringError averageTime : " + averageTime1 + "us");
+      // let startTime2 = new Date().getTime();
       await this.login(options.user, options.password);
-      let endTime2 = new Date().getTime();
-      let averageTime2 = ((endTime2 - startTime2) * 1000) / BASE_COUNT;
-      console.log("BasicFtpTest : login averageTime : " + averageTime1 + "us");
-      let startTime3 = new Date().getTime();
+      // let endTime2 = new Date().getTime();
+      // let averageTime2 = ((endTime2 - startTime2) * 1000) / BASE_COUNT;
+      // console.log("BasicFtpTest : login averageTime : " + averageTime1 + "us");
+      // let startTime3 = new Date().getTime();
       await this.useDefaultSettings();
-      let endTime3 = new Date().getTime();
-      let averageTime3 = ((endTime3 - startTime3) * 1000) / BASE_COUNT;
-      console.log("BasicFtpTest : useDefaultSettings averageTime : " + averageTime3 + "us");
+      // let endTime3 = new Date().getTime();
+      // let averageTime3 = ((endTime3 - startTime3) * 1000) / BASE_COUNT;
+      // console.log("BasicFtpTest : useDefaultSettings averageTime : " + averageTime3 + "us");
     } catch (err) {
       throw err;
     }
