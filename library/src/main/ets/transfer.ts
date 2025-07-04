@@ -14,15 +14,16 @@
  */
 
 
-import fs from "@ohos.file.fs";
 import socket from "@ohos.net.socket";
-import { FtpReadStream, FtpWriteStream, UploadOptions } from "./Client";
 import { describeAddress, describeTLS, ipIsPrivateV4Address } from "./netUtils";
 import { ClientError, FTPContext, FTPResponse, TaskResolver } from "./FtpContext";
 import { ProgressTracker, ProgressType } from "./ProgressTracker";
 import { positiveCompletion, positiveIntermediate } from "./parseControlResponse";
 import { to } from "./PathUtil";
 import { CharsetUtil } from "./StringEncoding";
+import { FtpReadStream } from "./models/FtpReadStream";
+import { UploadOptions } from "./models/UploadOptions";
+import { FtpWriteStream } from "./models/FtpWriteStream";
 
 export type UploadCommand = "STOR" | "APPE";
 
@@ -534,7 +535,7 @@ export async function downloadTo(
     destination.flushSync();
     config.tracker?.setBytesRead(0);
     config.tracker?.setBytesWritten(receivedSize + cache);
-    if(config.fileSize && receivedSize >= config.fileSize) {
+    if (config.fileSize && receivedSize >= config.fileSize) {
       release();
     }
   });
@@ -561,7 +562,7 @@ export async function downloadTo(
         const monitor = async () => {
           config.ftp.log("ftp4h: transferMonitor: check once");
           if (dataSocket) {
-            const state = await dataSocket.getState()
+            const state = await dataSocket.getState();
             if (state.isClose) {
               config.ftp.log("ftp4h: transferMonitor: close monitor because socket closed");
               resolve();

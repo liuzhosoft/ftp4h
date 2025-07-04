@@ -27,20 +27,11 @@ import { downloadTo, enterPassiveModeIPv4, enterPassiveModeIPv6, UploadCommand, 
 import { isMultiline, positiveCompletion } from "./parseControlResponse";
 
 import { CharsetUtil, StringEncoding } from "./StringEncoding";
+import { UploadOptions } from "./models/UploadOptions";
+import { FtpReadStream } from "./models/FtpReadStream";
+import { FtpWriteStream } from "./models/FtpWriteStream";
 
 const BASE_COUNT = 1;
-
-export interface FtpReadStream {
-  read(): Promise<ArrayBuffer>;
-
-  close(): void;
-}
-
-export interface FtpWriteStream {
-  writeSync(buf: ArrayBuffer): number;
-
-  flushSync(): void;
-}
 
 export interface AccessOptions {
   /** Host the client should connect to. Optional, default is "localhost". */
@@ -67,14 +58,6 @@ export type TransferStrategy = (ftp: FTPContext) => Promise<FTPResponse>;
 
 /** Parses raw directoy listing data. */
 export type RawListParser = (rawList: string) => FileInfo[];
-
-export interface UploadOptions {
-  /** Offset in the local file to start uploading from. */
-  localStart?: number;
-
-  /** Final byte position to include in upload from the local file. */
-  localEndInclusive?: number;
-}
 
 const LIST_COMMANDS_DEFAULT: readonly string[] = ["LIST -a", "LIST"];
 const LIST_COMMANDS_MLSD: readonly string[] = ["MLSD", "LIST -a", "LIST"];
@@ -354,9 +337,10 @@ export class FtpClient {
     await this.send("TYPE I"); // Binary mode
     await this.sendIgnoringError("STRU F"); // Use file structure
     const supportUTF8 = features.has("UTF8") || features.has("UTF-8");
-    if(supportUTF8) {
-      const utf8Resp = await this.sendIgnoringError("OPTS UTF8 ON"); // Some servers expect UTF-8 to be enabled explicitly and setting before login might not have worked.
-      if(utf8Resp.code == 200) {
+    if (supportUTF8) {
+      const utf8Resp =
+        await this.sendIgnoringError("OPTS UTF8 ON"); // Some servers expect UTF-8 to be enabled explicitly and setting before login might not have worked.
+      if (utf8Resp.code == 200) {
         this.ftp.encoding = "utf8";
       }
     }
@@ -686,7 +670,7 @@ export class FtpClient {
   }
 
   async closeDataStream() {
-    await this.ftp.send("ABOR")
+    await this.ftp.send("ABOR");
   }
 
   /**
@@ -1259,7 +1243,7 @@ export class FsSteamToFtpReadStreamAdapter implements FtpReadStream {
   async read(): Promise<ArrayBuffer> {
     if (!this.fsStream) {
       const file = await fs.open(this.path, fs.OpenMode.READ_ONLY);
-      this.fsStream = await fs.fdopenStream(file.fd, "r")
+      this.fsStream = await fs.fdopenStream(file.fd, "r");
     }
     const readLen = await this.fsStream.read(this.buffer);
     return this.buffer.slice(0, readLen);

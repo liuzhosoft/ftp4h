@@ -24,6 +24,12 @@ export * from "./src/main/ets/parseList";
 
 export * from "./src/main/ets/StringEncoding";
 
+export * from "./src/main/ets/models/FtpReadStream";
+
+export * from "./src/main/ets/models/FtpWriteStream";
+
+export * from "./src/main/ets/models/UploadOptions";
+
 export { to } from "./src/main/ets/PathUtil";
 
 export { join } from "./src/main/ets/PathUtil";
