@@ -804,7 +804,9 @@ export class FtpClient {
         reject(new Error("can not cache temp data because not set global context"));
       });
     }
-
+    if(!(await fs.access(this.cacheDir))) {
+      await fs.mkdir(this.cacheDir);
+    }
     let tempPath = this.cacheDir + "/" + (new Date().getTime()) + ".temp";
     let [outputStreamErr, outputStream] = await to<fs.Stream>(fs.createStream(tempPath, "a+"));
     if (outputStreamErr) {
