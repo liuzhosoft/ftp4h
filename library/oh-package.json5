@@ -1,10 +1,9 @@
 {
   "name": "@liuzhosoft/ftp4h",
-  "version": "1.0.0",
   "description": "ftp4h (ftp for Harmony) 是适用于Harmony的ftp客户端",
   "main": "index.ts",
   "author": "LiuZho Soft",
-  "license": "MIT License",
+  "license": "MIT",
   "dependencies": {},
   "types": "",
   "keywords": [
@@ -19,6 +18,7 @@
   },
   "type": "module",
   "repository": "https://github.com/liuzhosoft/ftp4h",
+  "version": "1.0.0",
   "devDependencies": {
   }
 }
