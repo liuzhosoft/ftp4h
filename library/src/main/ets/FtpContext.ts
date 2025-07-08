@@ -97,6 +97,7 @@ export class FTPContext {
   protected _partialResponse = "";
   /** The reason why a context has been closed. */
   protected _closingError: ClientError | undefined;
+  dataSocketConfig?: socket.TCPConnectOptions;
 
   /**
    * Instantiate an FTP context.
@@ -151,6 +152,7 @@ export class FTPContext {
   set socket(sockets: socket.TCPSocket | socket.TLSSocket) {
     // No data socket should be open in any case where the control socket is set or upgraded.
     this.dataSocket = undefined;
+    this.dataSocketConfig = undefined;
     // This being a reset, reset any other state apart from the socket.
     // this.tlsOptions = undefined
     this._partialResponse = "";
@@ -310,6 +312,7 @@ export class FTPContext {
   async reset(): Promise<void> {
     let startTime0 = new Date().getTime();
     this.socket = await this._newSocket();
+    this.dataSocketConfig = undefined;
     let endTime0 = new Date().getTime();
     let averageTime0 = ((endTime0 - startTime0) * 1000) / 1;
     console.log("BasicFtpTest : socket 带参数接口时长 : " + averageTime0 + "us");
@@ -330,12 +333,11 @@ export class FTPContext {
     }
     if ("getCertificate" in this._socket) {
       let tempSocket = this._socket as socket.TLSSocket;
-      return tempSocket.send(command + "\r\n");
+      return tempSocket.send(CharsetUtil.encode(command + "\r\n", this.encoding));
     } else {
       let tempSocket = this._socket as socket.TCPSocket;
       return tempSocket.send({
-        data: command + "\r\n",
-        encoding: this.encoding
+        data:CharsetUtil.encode(command + "\r\n", this.encoding)
       });
     }
 

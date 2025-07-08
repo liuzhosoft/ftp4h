@@ -27,6 +27,10 @@ import { downloadTo, enterPassiveModeIPv4, enterPassiveModeIPv6, UploadCommand, 
 import { isMultiline, positiveCompletion } from "./parseControlResponse";
 
 import { CharsetUtil, StringEncoding } from "./StringEncoding";
+import { UploadOptions } from "./models/UploadOptions";
+import { FtpReadStream } from "./models/FtpReadStream";
+import { FtpWriteStream } from "./models/FtpWriteStream";
+import { connection } from "@kit.NetworkKit";
 
 const BASE_COUNT = 1;
 
@@ -56,14 +60,6 @@ export type TransferStrategy = (ftp: FTPContext) => Promise<FTPResponse>;
 /** Parses raw directoy listing data. */
 export type RawListParser = (rawList: string) => FileInfo[];
 
-export interface UploadOptions {
-  /** Offset in the local file to start uploading from. */
-  localStart?: number;
-
-  /** Final byte position to include in upload from the local file. */
-  localEndInclusive?: number;
-}
-
 const LIST_COMMANDS_DEFAULT: readonly string[] = ["LIST -a", "LIST"];
 const LIST_COMMANDS_MLSD: readonly string[] = ["MLSD", "LIST -a", "LIST"];
 
@@ -78,21 +74,15 @@ export class FtpClient {
   readonly ftp: FTPContext;
   /** Tracks progress of data transfers. */
   protected _progressTracker: ProgressTracker;
-  private context;
+  readonly cacheDir: string;
 
   /**
    * Instantiate an FTP client.
    *
    * @param timeout  Timeout in milliseconds, use 0 for no timeout. Optional, default is 30 seconds.
    */
-  constructor(uiContext: any, timeout = 30000) {
-    if (!uiContext) {
-      throw new Error("context can not be null");
-    }
-    if (!uiContext.cacheDir) {
-      throw new Error("uiContext is not a Context object");
-    }
-    this.context = uiContext;
+  constructor(cacheDir: string, timeout = 30000) {
+    this.cacheDir = cacheDir;
     this.ftp = new FTPContext(timeout);
     this.prepareTransfer = this._enterFirstCompatibleMode([enterPassiveModeIPv6, enterPassiveModeIPv4]);
     this.parseList = parseListAutoDetect;
@@ -347,7 +337,14 @@ export class FtpClient {
     this.availableListCommands = supportsMLSD ? LIST_COMMANDS_MLSD : LIST_COMMANDS_DEFAULT;
     await this.send("TYPE I"); // Binary mode
     await this.sendIgnoringError("STRU F"); // Use file structure
-    await this.sendIgnoringError("OPTS UTF8 ON"); // Some servers expect UTF-8 to be enabled explicitly and setting before login might not have worked.
+    const supportUTF8 = features.has("UTF8") || features.has("UTF-8");
+    if (supportUTF8) {
+      const utf8Resp =
+        await this.sendIgnoringError("OPTS UTF8 ON"); // Some servers expect UTF-8 to be enabled explicitly and setting before login might not have worked.
+      if (utf8Resp.code == 200) {
+        this.ftp.encoding = "utf8";
+      }
+    }
     if (supportsMLSD) {
       await this.sendIgnoringError("OPTS MLST type;size;modify;unique;unix.mode;unix.owner;unix.group;unix.ownername;unix.groupname;"); // Make sure MLSD listings include all we can parse
     }
@@ -370,16 +367,21 @@ export class FtpClient {
     try {
       const useExplicitTLS = options.secure === true;
       const useImplicitTLS = options.secure === "implicit";
+      const net = await connection.getDefaultNet();
+      const [netErr, address] = await to<connection.NetAddress>(net.getAddressByName(options.host));
+      if (netErr) {
+        throw netErr;
+      }
 
       if (useImplicitTLS) {
         let startTime0 = new Date().getTime();
-        welcome = await this.connectImplicitTLS(options.host, options.port, options.secureOptions);
+        welcome = await this.connectImplicitTLS(address.address, options.port, options.secureOptions);
         let endTime0 = new Date().getTime();
         let averageTime0 = ((endTime0 - startTime0) * 1000) / BASE_COUNT;
         console.log("BasicFtpTest : connectImplicitTLS averageTime : " + averageTime0 + "us");
       } else {
         let startTime1 = new Date().getTime();
-        welcome = await this.connect(options.host, options.port);
+        welcome = await this.connect(address.address, options.port);
         let endTime1 = new Date().getTime();
         let averageTime1 = ((endTime1 - startTime1) * 1000) / 1;
         console.log("BasicFtpTest : connect 接口 averageTime : " + averageTime1 + "us");
@@ -392,21 +394,21 @@ export class FtpClient {
       }
       // Set UTF-8 on before login in case there are non-ascii characters in user or password.
       // Note that this might not work before login depending on server.
-      let startTime1 = new Date().getTime();
-      await this.sendIgnoringError("OPTS UTF8 ON");
-      let endTime1 = new Date().getTime();
-      let averageTime1 = ((endTime1 - startTime1) * 1000) / BASE_COUNT;
-      console.log("BasicFtpTest : sendIgnoringError averageTime : " + averageTime1 + "us");
-      let startTime2 = new Date().getTime();
+      // let startTime1 = new Date().getTime();
+      // await this.sendIgnoringError("OPTS UTF8 ON");
+      // let endTime1 = new Date().getTime();
+      // let averageTime1 = ((endTime1 - startTime1) * 1000) / BASE_COUNT;
+      // console.log("BasicFtpTest : sendIgnoringError averageTime : " + averageTime1 + "us");
+      // let startTime2 = new Date().getTime();
       await this.login(options.user, options.password);
-      let endTime2 = new Date().getTime();
-      let averageTime2 = ((endTime2 - startTime2) * 1000) / BASE_COUNT;
-      console.log("BasicFtpTest : login averageTime : " + averageTime1 + "us");
-      let startTime3 = new Date().getTime();
+      // let endTime2 = new Date().getTime();
+      // let averageTime2 = ((endTime2 - startTime2) * 1000) / BASE_COUNT;
+      // console.log("BasicFtpTest : login averageTime : " + averageTime1 + "us");
+      // let startTime3 = new Date().getTime();
       await this.useDefaultSettings();
-      let endTime3 = new Date().getTime();
-      let averageTime3 = ((endTime3 - startTime3) * 1000) / BASE_COUNT;
-      console.log("BasicFtpTest : useDefaultSettings averageTime : " + averageTime3 + "us");
+      // let endTime3 = new Date().getTime();
+      // let averageTime3 = ((endTime3 - startTime3) * 1000) / BASE_COUNT;
+      // console.log("BasicFtpTest : useDefaultSettings averageTime : " + averageTime3 + "us");
     } catch (err) {
       throw err;
     }
@@ -546,7 +548,7 @@ export class FtpClient {
    * @param source  Readable stream or path to a local file.
    * @param toRemotePath  Path to a remote file to write to.
    */
-  async uploadFrom(source: fs.Stream | string, toRemotePath: string,
+  async uploadFrom(source: FtpReadStream | string, toRemotePath: string,
     options: UploadOptions = {}): Promise<FTPResponse> {
     return this._uploadWithCommand(source, toRemotePath, "STOR", options);
   }
@@ -558,7 +560,7 @@ export class FtpClient {
    * @param source  Readable stream or path to a local file.
    * @param toRemotePath  Path to a remote file to write to.
    */
-  async appendFrom(source: fs.Stream | string, toRemotePath: string,
+  async appendFrom(source: FtpReadStream | string, toRemotePath: string,
     options: UploadOptions = {}): Promise<FTPResponse> {
     let startTime1 = new Date().getTime();
     let result = this._uploadWithCommand(source, toRemotePath, "APPE", options);
@@ -571,7 +573,7 @@ export class FtpClient {
   /**
    * @protected
    */
-  protected async _uploadWithCommand(source: fs.Stream | string, remotePath: string, command: UploadCommand,
+  protected async _uploadWithCommand(source: FtpReadStream | string, remotePath: string, command: UploadCommand,
     options: UploadOptions): Promise<FTPResponse> {
     if (typeof source === "string") {
       return this._uploadLocalFile(source, remotePath, command, options);
@@ -584,13 +586,7 @@ export class FtpClient {
    */
   protected async _uploadLocalFile(localPath: string, remotePath: string, command: UploadCommand,
     options: UploadOptions): Promise<FTPResponse> {
-    const [sourceErr, source] = await to<fs.Stream>(fs.createStream(localPath, "a+"));
-    if (sourceErr) {
-      throw sourceErr;
-    }
-    if (!source) {
-      throw new Error("createStream fail");
-    }
+    const source = new FsSteamToFtpReadStreamAdapter(localPath);
     const [statErr, stat] = await to<fs.Stat>(fs.stat(localPath));
     if (statErr) {
       throw statErr;
@@ -614,26 +610,14 @@ export class FtpClient {
     try {
       return await this._uploadFromStream(source, remotePath, command, options);
     } finally {
-      let [err, closeInfo] = await to<void>(ignoreError(() => {
-        if (source) {
-          return source.close();
-        } else {
-          return new Promise(function (resolve, reject) {
-            reject("source is null,close fail");
-          });
-        }
-      })
-      );
-      if (err) {
-        throw err;
-      }
+      source.close();
     }
   }
 
   /**
    * @protected
    */
-  protected async _uploadFromStream(source: fs.Stream, remotePath: string, command: UploadCommand,
+  protected async _uploadFromStream(source: FtpReadStream, remotePath: string, command: UploadCommand,
     options: UploadOptions): Promise<FTPResponse> {
     let onError = (err: ClientError) => this.ftp.closeWithError(err);
     try {
@@ -684,11 +668,15 @@ export class FtpClient {
    * @param fromRemotePath  Path of the remote file to read from.
    * @param startAt  Position within the remote file to start downloading at. If the destination is a file, this offset is also applied to it.
    */
-  async downloadTo(destination: fs.Stream | string, fromRemotePath: string, startAt = 0, fileSize: number = 0) {
+  async downloadTo(destination: FtpWriteStream | string, fromRemotePath: string, startAt = 0, fileSize: number = 0) {
     if (typeof destination === "string") {
       return this._downloadToFile(destination, fromRemotePath, startAt);
     }
     return this._downloadToStream(destination, fromRemotePath, startAt, fileSize);
+  }
+
+  async closeDataStream() {
+    await this.ftp.send("ABOR");
   }
 
   /**
@@ -745,7 +733,7 @@ export class FtpClient {
   /**
    * @protected
    */
-  protected async _downloadToStream(destination: fs.Stream, remotePath: string, startAt: number,
+  protected async _downloadToStream(destination: FtpWriteStream, remotePath: string, startAt: number,
     fileSize: number = 0): Promise<FTPResponse> {
     let onError = (err: ClientError) => this.ftp.closeWithError(err);
     try {
@@ -768,7 +756,7 @@ export class FtpClient {
         onError = null;
       }
       if (destination) {
-        await destination.flush();
+        destination.flushSync();
       }
     }
   }
@@ -808,15 +796,18 @@ export class FtpClient {
 
   /**
    * @protected
+   * ????为什么要写到本地文件里？？？？？
    */
   protected async _requestListWithCommand(command: string): Promise<FileInfo[]> {
-    if (!this.context || !this.context.cacheDir) {
+    if (!this.cacheDir) {
       return new Promise(function (resolve, reject) {
         reject(new Error("can not cache temp data because not set global context"));
       });
     }
-
-    let tempPath = this.context.cacheDir + "/" + (new Date().getTime()) + ".temp";
+    if(!(await fs.access(this.cacheDir))) {
+      await fs.mkdir(this.cacheDir);
+    }
+    let tempPath = this.cacheDir + "/" + (new Date().getTime()) + ".temp";
     let [outputStreamErr, outputStream] = await to<fs.Stream>(fs.createStream(tempPath, "a+"));
     if (outputStreamErr) {
       return new Promise(function (resolve, reject) {
@@ -849,7 +840,7 @@ export class FtpClient {
         reject(downloadToErr);
       });
     }
-    outputStream.closeSync();
+    await outputStream.close();
 
     let buff = new ArrayBuffer(8192);
     let [statErr, total] = await to<fs.Stat>(fs.stat(tempPath));
@@ -907,9 +898,9 @@ export class FtpClient {
       readSize += readLen;
     }
     this.ftp.log(text);
-    inputStream.flushSync();
-    inputStream.closeSync();
-    fs.unlinkSync(tempPath);
+    await inputStream.flush();
+    await inputStream.close();
+    await fs.unlink(tempPath);
     return this.parseList(text);
   }
 
@@ -1163,28 +1154,28 @@ export class FtpClient {
    * DEPRECATED, use `uploadFrom`.
    * @deprecated
    */
-  async upload(source: fs.Stream | string, toRemotePath: string, options: UploadOptions = {}): Promise<FTPResponse> {
-    this.ftp.log("Warning: upload() has been deprecated, use uploadFrom().");
-    return this.uploadFrom(source, toRemotePath, options);
-  }
+  // async upload(source: fs.Stream | string, toRemotePath: string, options: UploadOptions = {}): Promise<FTPResponse> {
+  //   this.ftp.log("Warning: upload() has been deprecated, use uploadFrom().");
+  //   return this.uploadFrom(source, toRemotePath, options);
+  // }
 
   /**
    * DEPRECATED, use `appendFrom`.
    * @deprecated
    */
-  async append(source: fs.Stream | string, toRemotePath: string, options: UploadOptions = {}): Promise<FTPResponse> {
-    this.ftp.log("Warning: append() has been deprecated, use appendFrom().");
-    return this.appendFrom(source, toRemotePath, options);
-  }
+  // async append(source: fs.Stream | string, toRemotePath: string, options: UploadOptions = {}): Promise<FTPResponse> {
+  //   this.ftp.log("Warning: append() has been deprecated, use appendFrom().");
+  //   return this.appendFrom(source, toRemotePath, options);
+  // }
 
   /**
    * DEPRECATED, use `downloadTo`.
    * @deprecated
    */
-  async download(destination: fs.Stream | string, fromRemotePath: string, startAt = 0) {
-    this.ftp.log("Warning: download() has been deprecated, use downloadTo().");
-    return this.downloadTo(destination, fromRemotePath, startAt);
-  }
+  // async download(destination: fs.Stream | string, fromRemotePath: string, startAt = 0) {
+  //   this.ftp.log("Warning: download() has been deprecated, use downloadTo().");
+  //   return this.downloadTo(destination, fromRemotePath, startAt);
+  // }
 
   /**
    * DEPRECATED, use `uploadFromDir`.
@@ -1245,6 +1236,30 @@ async function ignoreError<T>(func: () => Promise<T | undefined>) {
   } catch (err) {
     // Ignore
     return undefined;
+  }
+}
+
+export class FsSteamToFtpReadStreamAdapter implements FtpReadStream {
+  private path: string;
+  private fsStream?: fs.Stream;
+  private buffer = new ArrayBuffer(1024 * 1024);
+
+  constructor(path: string) {
+    this.path = path;
+  }
+
+  async read(): Promise<ArrayBuffer> {
+    if (!this.fsStream) {
+      const file = await fs.open(this.path, fs.OpenMode.READ_ONLY);
+      this.fsStream = await fs.fdopenStream(file.fd, "r");
+    }
+    const readLen = await this.fsStream.read(this.buffer);
+    return this.buffer.slice(0, readLen);
+  }
+
+  close(): void {
+    this.fsStream?.close();
+    this.fsStream = undefined;
   }
 }
 

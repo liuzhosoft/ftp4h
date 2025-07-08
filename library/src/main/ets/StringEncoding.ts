@@ -22,16 +22,24 @@ import { GBK } from "./gbk/gbk";
 import buffer from "@ohos.buffer";
 
 export type StringEncoding =
-  "utf8" | "ascii" | "utf-8" | "utf16le" | "ucs2" | "ucs-2" |
-  "base64" | "latin1" | "binary" | "hex" | "gbk" | undefined;
+    "utf8" | "ascii" | "utf-8" | "utf16le" | "ucs2" | "ucs-2" |
+    "base64" | "latin1" | "binary" | "hex" | "gbk" | undefined;
 
 
 export namespace CharsetUtil {
-  export function decode(data: ArrayBuffer, encoding: StringEncoding): string {
-    if (encoding === "gbk") {
-      return GBK.decode(new Uint8Array(data));
-    } else {
-      return buffer.from(data).toString(encoding);
+    export function decode(data: ArrayBuffer, encoding: StringEncoding): string {
+        if (encoding === "gbk") {
+            return GBK.decode(new Uint8Array(data));
+        } else {
+            return buffer.from(data).toString(encoding);
+        }
     }
-  }
+
+    export function encode(data: string, encoding: StringEncoding): ArrayBuffer {
+        if (encoding == "gbk") {
+            return new Uint8Array(GBK.encode(data)).buffer
+        } else {
+            return buffer.from(data, encoding).buffer
+        }
+    }
 }

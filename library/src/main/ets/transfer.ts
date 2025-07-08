@@ -14,46 +14,37 @@
  */
 
 
-import fs from "@ohos.file.fs";
 import socket from "@ohos.net.socket";
-import { UploadOptions } from "./Client";
 import { describeAddress, describeTLS, ipIsPrivateV4Address } from "./netUtils";
 import { ClientError, FTPContext, FTPResponse, TaskResolver } from "./FtpContext";
 import { ProgressTracker, ProgressType } from "./ProgressTracker";
 import { positiveCompletion, positiveIntermediate } from "./parseControlResponse";
 import { to } from "./PathUtil";
-import ArrayList from "@ohos.util.ArrayList";
 import { CharsetUtil } from "./StringEncoding";
+import { FtpReadStream } from "./models/FtpReadStream";
+import { UploadOptions } from "./models/UploadOptions";
+import { FtpWriteStream } from "./models/FtpWriteStream";
 
 export type UploadCommand = "STOR" | "APPE";
 
 class CacheResponseError {
-  private response: ArrayList<ArrayBuffer> = new ArrayList<ArrayBuffer>();
   private errInfo: Error;
   private enCoding: string = "utf8";
+  private receiver?: (data: ArrayBuffer) => void;
 
   constructor() {
   }
 
-  public setResponse(data: ArrayList<ArrayBuffer>) {
-    this.response = data;
+  public receivedData(data: ArrayBuffer) {
+    this.receiver?.(data);
   }
 
-  public addResponse(data: ArrayBuffer) {
-    if (!this.response) {
-      this.response = new ArrayList<ArrayBuffer>();
-    }
-    if (!data) {
-      return;
-    }
-    this.response.add(data);
+  public listenData(receiver: (data: ArrayBuffer) => void) {
+    this.receiver = receiver;
   }
 
-  public getResponse(): ArrayList<ArrayBuffer> {
-    if (!this.response) {
-      this.response = new ArrayList<ArrayBuffer>();
-    }
-    return this.response;
+  public unlisten() {
+    this.receiver = undefined;
   }
 
   public setErrorInfo(info: Error) {
@@ -90,7 +81,7 @@ export async function enterPassiveModeIPv6(ftp: FTPContext): Promise<FTPResponse
   if (hostErr || controlHost === undefined) {
     throw new Error("Control socket is disconnected, can't get remote address.");
   }
-  await connectForPassiveTransfer(controlHost.address, port, ftp);
+  await prepareForPassiveTransfer(controlHost.address, port, ftp);
   let endTime1 = new Date().getTime();
   let averageTime1 = ((endTime1 - startTime1) * 1000) / 1;
   console.log("BasicFtpTest : enterPassiveModeIPv6 averageTime : " + averageTime1 + "us");
@@ -132,7 +123,7 @@ export async function enterPassiveModeIPv4(ftp: FTPContext): Promise<FTPResponse
   if (ipIsPrivateV4Address(target.host) && controlHost && !ipIsPrivateV4Address(controlHost.address)) {
     target.host = controlHost.address;
   }
-  await connectForPassiveTransfer(target.host, target.port, ftp);
+  await prepareForPassiveTransfer(target.host, target.port, ftp);
   let endTime1 = new Date().getTime();
   let averageTime1 = ((endTime1 - startTime1) * 1000) / 1;
   console.log("BasicFtpTest : enterPassiveModeIPv4 averageTime : " + averageTime1 + "us");
@@ -157,116 +148,60 @@ export function parsePasvResponse(message: string): {
   };
 }
 
-export async function connectForPassiveTransfer(host: string, port: number, ftp: FTPContext): Promise<void> {
+/**
+ * 构建socket和options，不进行连接，由发起command的时候去连接
+ */
+export async function prepareForPassiveTransfer(host: string, port: number, ftp: FTPContext): Promise<void> {
   if (!ftp) {
-    return new Promise(function (resolve, reject) {
-      reject(new Error("ftp can not be null"));
-    });
+    throw new Error("ftp can not be null");
   }
-  let socket = await ftp._newSocket();
+
+  const socket = await ftp._newSocket();
   if (!socket) {
-    return new Promise(function (resolve, reject) {
-      reject(new Error("socket can not be null"));
-    });
+    throw new Error("socket can not be null");
   }
   const cacheData = cacheDataSet.get(`${host}:${port}`) ?? new CacheResponseError();
   cacheDataSet.set(`${host}:${port}`, cacheData);
-  const handleConnErr = function (err: Error) {
-    err.message = "Can't open data connection in passive mode: " + err.message;
-    if (cacheData) {
-      cacheData.setEnCoding(null);
-      cacheData.setResponse(null);
-      cacheData.setErrorInfo(err);
-    }
-    return new Promise(function (resolve, reject) {
-      reject(err);
-    });
-  };
-  const handleTimeout = async function () {
-    await socket.close();
-    return new Promise(function (resolve, reject) {
-      reject(new Error(`Timeout when trying to open data connection to ${host}:${port}`));
-    });
-  };
-  let [extraErr, ExtraInfo] = await to<void>(socket.setExtraOptions({
+
+  const extraInfo = await socket.setExtraOptions({
     socketTimeout: ftp.timeout,
     keepAlive: false,
     TCPNoDelay: true,
     reuseAddress: false
-  }));
-  if (extraErr) {
-    return new Promise(function (resolve, reject) {
-      reject(extraErr);
-    });
-  }
-  socket.on("error", handleConnErr);
-  // socket.on("timeout", handleTimeout)
+  });
+
   socket.on("message", (value) => {
-    if (!cacheData) {
-      return new Promise(function (resolve, reject) {
-        reject(new Error("cacheData is null"));
-      });
-    }
     if (value) {
-      cacheData.addResponse(value.message);
-      cacheData.setErrorInfo(null);
+      cacheData.receivedData(value.message);
+      cacheData.setErrorInfo(undefined);
     } else {
-      let err = new Error("get data null");
-      cacheData.setResponse(null);
-      cacheData.setErrorInfo(err);
-      return new Promise(function (resolve, reject) {
-        reject(err);
-      });
+      cacheData.setErrorInfo(new Error("received null data"));
     }
   });
   socket.on("connect", () => {
-    if (cacheData) {
-      cacheData.setEnCoding(null);
-      cacheData.setResponse(null);
-      cacheData.setErrorInfo(null);
-    }
+    cacheData.setEnCoding(undefined);
+    cacheData.setErrorInfo(undefined);
   });
   socket.on("close", () => {
-    if (cacheData) {
-      cacheData.setErrorInfo(null);
-    }
+    cacheData.setErrorInfo(undefined);
   });
+
   if ("getCipherSuite" in socket) {
-    let tempSocket = socket as socket.TLSSocket;
+    // set tls options
     ftp.tlsOptions.address.port = port;
     ftp.tlsOptions.address.address = host;
     ftp.tlsOptions.address.family = ftp.ipFamily ? ftp.ipFamily : 1;
-    let [connectErr, connectInfo] = await to<void>(tempSocket.connect(ftp.tlsOptions));
-    if (connectErr) {
-      return new Promise(function (resolve, reject) {
-        reject(connectErr);
-      });
-    }
-    tempSocket.off("error", handleConnErr);
-    ftp.dataSocket = socket;
-    return new Promise(function (resolve, reject) {
-      resolve();
-    });
   } else {
-    let tempSocket = socket as socket.TCPSocket;
-    let [connectErr, connectInfo] = await to<void>(tempSocket.connect({
+    // set tcp options
+    ftp.dataSocketConfig = {
       address: {
         address: host,
         port: port,
         family: ftp.ipFamily ? ftp.ipFamily : 1
       }
-    }));
-    if (connectErr) {
-      return new Promise(function (resolve, reject) {
-        reject(connectErr);
-      });
-    }
-    tempSocket.off("error", handleConnErr);
-    ftp.dataSocket = socket;
-    return new Promise(function (resolve, reject) {
-      resolve();
-    });
+    };
   }
+  ftp.dataSocket = socket;
 }
 
 /**
@@ -403,6 +338,7 @@ class TransferResolver {
       });
     }
     this.ftp.dataSocket = undefined;
+    this.ftp.dataSocketConfig = undefined;
     task.reject(err);
   }
 
@@ -421,6 +357,7 @@ class TransferResolver {
     const canResolve = this.dataTransferDone && this.response !== undefined;
     if (canResolve) {
       this.ftp.dataSocket = undefined;
+      this.ftp.dataSocketConfig = undefined;
       task.resolve(this.response);
     }
   }
@@ -437,19 +374,19 @@ export interface TransferConfig {
 }
 
 
-export function uploadFrom(source: fs.Stream, config: TransferConfig, options: UploadOptions,
-  errCallback: Function): Promise<FTPResponse> {
+export async function uploadFrom(
+  source: FtpReadStream,
+  config: TransferConfig,
+  options: UploadOptions,
+  errCallback: Function
+): Promise<FTPResponse> {
   const resolver = new TransferResolver(config.ftp, config.tracker);
   const fullCommand = `${config.command} ${config.remotePath}`;
+  const dataSocket = await connectToDataSocket(config);
   return config.ftp.handle(fullCommand, async (res, task) => {
     if (res instanceof Error) {
       resolver.onError(task, res);
     } else if (res.code === 150 || res.code === 125) { // Ready to upload
-      const dataSocket = config.ftp.dataSocket;
-      if (!dataSocket) {
-        resolver.onError(task, new Error("Upload should begin but no data connection is available."));
-        return;
-      }
       // If we are using TLS, we have to wait until the dataSocket issued
       // 'secureConnect'. If this hasn't happened yet, getCipher() returns undefined.
       const isHttps = "getCipherSuite" in dataSocket ? true : false;
@@ -479,7 +416,6 @@ export function uploadFrom(source: fs.Stream, config: TransferConfig, options: U
         }
         config.ftp.log(`Uploading to ${addressInfo} (${tlsInfo})`);
         resolver.onDataStart(config.remotePath, config.type);
-        let readBuffer: ArrayBuffer = new ArrayBuffer(8192);
         try {
           dataSocket.on("error", err => {
             resolver.onError(task, err);
@@ -491,28 +427,8 @@ export function uploadFrom(source: fs.Stream, config: TransferConfig, options: U
             if (readLen === Number.MAX_VALUE) {
               readLen = 0;
             }
-            let start = options.localStart + readSize;
-            let end = options.localEndInclusive;
-
-            let lastSize = 0;
-            if (start + readBuffer.byteLength > end) {
-              lastSize = end - start;
-              if (lastSize > readBuffer.byteLength) {
-                lastSize = 0;
-              }
-            }
-
-            if (lastSize > 0) {
-              readLen = await source.read(readBuffer, {
-                offset: start,
-                length: lastSize
-              });
-            } else {
-              readLen = await source.read(readBuffer, {
-                offset: start
-              });
-            }
-            await source.flush();
+            const readBuffer = await source.read();
+            readLen = readBuffer.byteLength;
             if (readLen <= 0) {
               break;
             }
@@ -524,10 +440,7 @@ export function uploadFrom(source: fs.Stream, config: TransferConfig, options: U
               await localTlsSocket.send(data);
             } else {
               let localTlsSocket = dataSocket as socket.TCPSocket;
-              await localTlsSocket.send({
-                data: trueData,
-                encoding: config.ftp.encoding ? config.ftp.encoding : "utf8"
-              });
+              await localTlsSocket.send({ data: trueData });
             }
             readSize += readLen;
             if (config && config.tracker) {
@@ -554,128 +467,153 @@ export function uploadFrom(source: fs.Stream, config: TransferConfig, options: U
   });
 }
 
-export function downloadTo(destination: fs.Stream, config: TransferConfig,
-  errCallback: Function): Promise<FTPResponse> {
-  console.log(`xxx download ${config.remotePath}, startAt = ${config.startAt}, fileSize = ${config.fileSize}`);
+
+async function connectToDataSocket(config: TransferConfig): Promise<socket.TCPSocket | socket.TLSSocket> {
   if (!config.ftp.dataSocket) {
-    throw new Error("Download will be initiated but no data connection is available.");
+    throw new Error("no data connection is available.");
   }
+  const dataSocket = config.ftp.dataSocket;
+  if (!dataSocket) {
+    throw new Error("no data connection is available.");
+  }
+  // connect to data channel
+  if ("getCipherSuite" in socket) {
+    await (dataSocket as socket.TLSSocket).connect(config.ftp.tlsOptions);
+  } else {
+    await (dataSocket as socket.TCPSocket).connect(config.ftp.dataSocketConfig!);
+  }
+  return dataSocket;
+};
+
+/**
+ * 建议放到IO线程调用:
+ * 网速太快的时候下载大文件会造成UI线程阻塞-内存溢出
+ */
+export async function downloadTo(
+  destination: FtpWriteStream,
+  config: TransferConfig,
+  errCallback: Function
+): Promise<FTPResponse> {
+  config.ftp.log(`xxx download ${config.remotePath}, startAt = ${config.startAt}, fileSize = ${config.fileSize}`);
   if (!destination) {
     throw new Error("Stream can not be null.");
   }
-  const resolver = new TransferResolver(config.ftp, config.tracker);
+
+  const dataSocket = await connectToDataSocket(config);
+  const remoteAddr = await dataSocket.getRemoteAddress();
+  const addrInfo = await describeAddress(dataSocket);
+  const tlsInfo = await describeTLS(dataSocket);
   let cache = 0;
   if (config && config.tracker) {
     cache = config.tracker.getBytesRead() + config.tracker.getBytesWritten();
   }
+  let isTransferCompleted = false;
+
+  const resolver = new TransferResolver(config.ftp, config.tracker);
+
+  const cacheKey = `${remoteAddr.address}:${remoteAddr.port}`;
+  const cacheData = cacheDataSet.get(cacheKey);
+  if (!cacheData) {
+    throw new Error("cache data is undefined");
+  }
+  const configTimeOut = (config.ftp.timeout <= 0) ? Number.MAX_VALUE : config.ftp.timeout;
+  // 用作部分服务不规范返回226的特殊hold？？
+  // 如果下载传入了文件路径，可以通过client的size获取服务器文件长度，
+  // 如果是list cmd，获取的目录数据不包含长度，按照下方逻辑来做优化
+  // 由于socket不返回需要下载的文件总长度，所以遇到fileSize为0的情况，onMessage那里就不知道何时数据传输结束，
+  // 这里通过判断cacheData.getResponse()的集合长度，当长度为0的时候，下方定时器连续10次（以count来计数）都是0 那么判断onMessage没有回调 数据传输结束 可以结束数据传输 用于关闭dataSocket
+  if (!config.fileSize) {
+    config.fileSize = 0;
+  }
+
+  let receivedSize = 0;
+  cacheData!.listenData((data) => {
+    // const off = (config.startAt ?? 0) + receivedSize;
+    // config.ftp.log(`ftp4h: transfer[${config.command}] received data[${data.byteLength}] total=${receivedSize} offset=${off}`);
+    receivedSize += data.byteLength;
+    destination.writeSync(data);
+    destination.flushSync();
+    config.tracker?.setBytesRead(0);
+    config.tracker?.setBytesWritten(receivedSize + cache);
+    if (config.fileSize && receivedSize >= config.fileSize) {
+      release();
+    }
+  });
+
+  const release = () => {
+    cacheDataSet.delete(cacheKey);
+    cacheData?.unlisten();
+    try {
+      dataSocket?.close();
+    } catch (ignore) {
+    }
+  };
+
   return config.ftp.handle(config.command, async (res, task) => {
+    config.ftp.log(`ftp4h: download handle res: ${JSON.stringify(res)}`);
     if (res instanceof Error) {
       resolver.onError(task, res);
     } else if (res.code === 150 || res.code === 125) { // Ready to download
-      const dataSocket = config.ftp.dataSocket;
-      if (!dataSocket) {
-        resolver.onError(task, new Error("Download should begin but no data connection is available."));
+      config.ftp.log(`Downloading from ${addrInfo} (${tlsInfo})`);
+      resolver.onDataStart(config.remotePath, config.type);
+      const [resultErr] = await to<void>(new Promise((resolve, reject) => {
+        let lastSize = receivedSize;
+        let lastSizeChangedAt = Date.now();
+        const monitor = async () => {
+          config.ftp.log("ftp4h: transferMonitor: check once");
+          if (dataSocket) {
+            const state = await dataSocket.getState();
+            if (state.isClose) {
+              config.ftp.log("ftp4h: transferMonitor: close monitor because socket closed");
+              resolve();
+              return;
+            }
+          }
+          const errInfo = cacheData.getErrorInfo();
+          if (errInfo) {
+            config.ftp.log(`ftp4h: transferMonitor: received error: ${JSON.stringify(errInfo)}`);
+            resolver.onError(task, errInfo);
+            errCallback?.(errInfo);
+            reject(errInfo);
+            return;
+          }
+          if (config.fileSize > 0 && receivedSize >= config.fileSize) {
+            config.ftp.log(`ftp4h: transferMonitor: received full`);
+            resolve();
+            return;
+          }
+          const timeGap = Date.now() - lastSizeChangedAt;
+          if (timeGap >= 200) {
+            if (isTransferCompleted) {
+              config.ftp.log(`ftp4h: transferMonitor: received ctrol say completed`);
+              resolve();
+              return;
+            } else if (timeGap >= configTimeOut) {
+              config.ftp.log(`ftp4h: transferMonitor: timeout`);
+              reject(Error("transfer timeout"));
+              return;
+            }
+          }
+          if (receivedSize != lastSize) {
+            lastSizeChangedAt = Date.now();
+          } else {
+            config.ftp.log("ftp4h: transferMonitor: receivedSize not changed");
+          }
+          lastSize = receivedSize;
+          setTimeout(monitor, 100);
+        };
+        setTimeout(monitor, 100);
+      }));
+      release();
+      if (resultErr) {
+        resolver.onError(task, resultErr);
         return;
       }
-      let [addressErr, addressInfo] = await to<string>(describeAddress(dataSocket));
-      if (addressErr) {
-        throw addressErr;
-      }
-      let [tlsErr, tlsInfo] = await to<string>(describeTLS(dataSocket));
-      if (tlsErr) {
-        throw tlsErr;
-      }
-      config.ftp.log(`Downloading from ${addressInfo} (${tlsInfo})`);
-      resolver.onDataStart(config.remotePath, config.type);
-      let configTimeOut = (config.ftp.timeout <= 0) ? Number.MAX_VALUE : config.ftp.timeout;
-      let timeOut = 0;
-      let cacheSize = 0; //记录当前下载以及写入的进度
-      // 如果下载传入了文件路径，可以通过client的size获取服务器文件长度， 如果是list接口，获取的是目录无法获取文件长度，按照下方逻辑来做优化
-      // 由于socket不返回需要下载的文件总长度，所以遇到fileSize为0的情况，onMessage那里就不知道何时数据传输结束，
-      // 这里通过判断cacheData.getResponse()的集合长度，当长度为0的时候，下方定时器连续10次（以count来计数）都是0 那么判断onMessage没有回调 数据传输结束 可以结束数据传输 用于关闭dataSocket
-      let count = 0;
-      if (!config.fileSize) {
-        config.fileSize = 0;
-      }
-      const add = await dataSocket.getRemoteAddress();
-      const cacheKey = `${add.address}:${add.port}`;
-      const cacheData = cacheDataSet.get(cacheKey);
-      let [resultErr, resultPromise] = await to<CacheResponseError>(new Promise(function (resolve, reject) {
-        let intervalId = setInterval(function () {
-          timeOut = timeOut + 20;
-          if (!cacheData) {
-            clearInterval(intervalId);
-            reject(new Error("cache data is null"));
-          }
-          let data = cacheData.getResponse();
-          let errInfo = cacheData.getErrorInfo();
-          if (errInfo) {
-            resolver.onError(task, errInfo);
-            if (errCallback) {
-              errCallback(errInfo);
-            }
-            clearInterval(intervalId);
-            reject(errInfo);
-          }
-
-          if (config.fileSize > 0) {
-            if (cacheSize >= config.fileSize) {
-              count = 0;
-              clearInterval(intervalId);
-              resolve(cacheData);
-            } else {
-              while (data.length > 0 && cacheSize < config.fileSize) {
-                count = 0;
-                let tempData = data.removeByIndex(0);
-                destination.writeSync(tempData, { offset: (config.startAt ?? 0) + cacheSize });
-                destination.flushSync();
-                cacheSize += tempData.byteLength;
-                if (config && config.tracker) {
-                  config.tracker.setBytesRead(0);
-                  config.tracker.setBytesWritten(cacheSize + cache);
-                }
-              }
-            }
-          } else {
-            if (data.length == 0) {
-              if (count >= 10) {
-                count = 0;
-                clearInterval(intervalId);
-                resolve(cacheData);
-              }
-              count++;
-            } else {
-              while (data.length > 0) {
-                count = 0;
-                let tempData = data.removeByIndex(0);
-                destination.writeSync(tempData, { offset: (config.startAt ?? 0) + cacheSize });
-                destination.flushSync();
-                cacheSize += tempData.byteLength;
-                if (config && config.tracker) {
-                  config.tracker.setBytesRead(0);
-                  config.tracker.setBytesWritten(cacheSize + cache);
-                }
-              }
-            }
-          }
-          // if (timeOut >= configTimeOut) {
-          //   clearInterval(intervalId);
-          //   reject(new Error('download task timeout'))
-          // }
-        }, 20);
-      }));
-      dataSocket.close();
-      if (resultErr) {
-        throw resultErr;
-      }
-      timeOut = 0;
-      cacheSize = 0;
-      count = 0;
       await resolver.onDataDone(task);
-      cacheDataSet.delete(cacheKey);
     } else if (res.code === 350) { // Restarting at startAt.
       config.ftp.send("RETR " + config.remotePath);
     } else if (positiveCompletion(res.code)) { // Transfer complete
+      isTransferCompleted = true;
       resolver.onControlDone(task, res);
     } else if (positiveIntermediate(res.code)) {
       resolver.onUnexpectedRequest(res);
