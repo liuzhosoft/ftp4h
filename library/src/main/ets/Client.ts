@@ -30,7 +30,6 @@ import { CharsetUtil, StringEncoding } from "./StringEncoding";
 import { UploadOptions } from "./models/UploadOptions";
 import { FtpReadStream } from "./models/FtpReadStream";
 import { FtpWriteStream } from "./models/FtpWriteStream";
-import { connection } from "@kit.NetworkKit";
 
 const BASE_COUNT = 1;
 
@@ -367,21 +366,16 @@ export class FtpClient {
     try {
       const useExplicitTLS = options.secure === true;
       const useImplicitTLS = options.secure === "implicit";
-      const net = await connection.getDefaultNet();
-      const [netErr, address] = await to<connection.NetAddress>(net.getAddressByName(options.host));
-      if (netErr) {
-        throw netErr;
-      }
 
       if (useImplicitTLS) {
         let startTime0 = new Date().getTime();
-        welcome = await this.connectImplicitTLS(address.address, options.port, options.secureOptions);
+        welcome = await this.connectImplicitTLS(options.host, options.port, options.secureOptions);
         let endTime0 = new Date().getTime();
         let averageTime0 = ((endTime0 - startTime0) * 1000) / BASE_COUNT;
         console.log("BasicFtpTest : connectImplicitTLS averageTime : " + averageTime0 + "us");
       } else {
         let startTime1 = new Date().getTime();
-        welcome = await this.connect(address.address, options.port);
+        welcome = await this.connect(options.host, options.port);
         let endTime1 = new Date().getTime();
         let averageTime1 = ((endTime1 - startTime1) * 1000) / 1;
         console.log("BasicFtpTest : connect 接口 averageTime : " + averageTime1 + "us");
