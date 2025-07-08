@@ -292,8 +292,8 @@ export class FTPContext {
     }
     this._closingError = err;
     // Close the sockets but don't fully reset this context to preserve `this._closingError`.
-    await this._closeControlSocket();
     await this._closeSocket(this._dataSocket);
+    await this._closeControlSocket();
     // Give the user's task a chance to react, maybe cleanup resources.
     this._passToHandler(err);
     // The task might not have been rejected by the user after receiving the error.
