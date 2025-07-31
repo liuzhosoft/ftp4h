@@ -21,11 +21,12 @@ export class FtpSocketTCPImpl implements FtpSocket {
         }
         this.sock = socket.constructTCPSocketInstance();
         this.sock.on("close", () => {
+          FtpLogger.debug(tag, `socket close for ${address}:${port}`);
           this.sock = undefined;
         });
         this.sock.on("error", (err) => {
           reject(err);
-          FtpLogger.error(tag, `socket error`, err);
+          FtpLogger.error(tag, `socket error for  ${address}:${port}`, err);
         });
         this.sock.on("message", (msg) => {
           this.messageSubscribers.forEach(subscriber => subscriber(msg.message));
@@ -49,6 +50,8 @@ export class FtpSocketTCPImpl implements FtpSocket {
   }
 
   async isConnected(): Promise<boolean> {
+    const state = await this.sock?.getState();
+    FtpLogger.debug(tag, `socketState = ${JSON.stringify(state)}`);
     return this.sock != undefined && (await this.sock.getState()).isConnected;
   }
 

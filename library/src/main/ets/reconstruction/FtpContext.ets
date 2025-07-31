@@ -9,6 +9,7 @@ import FtpLogger from "./FtpLogger";
 import { FtpTransfer } from "./transfer/FtpTransfer";
 import { FtpTransferIpv4Impl } from "./transfer/FtpTransferIpv4Impl";
 import { socket } from "@kit.NetworkKit";
+import { rcp } from "@kit.RemoteCommunicationKit";
 
 const tag = `FtpContext`;
 
@@ -55,7 +56,9 @@ export class FtpContext {
     if (this.transfer) {
       throw new Error("illegal state, already has a transfer session");
     }
-    this.transfer = new FtpTransferIpv4Impl(this);
+    this.transfer = new FtpTransferCloseAwareWrapper(new FtpTransferIpv4Impl(this), () => {
+      this.transfer = undefined;
+    });
     await this.transfer.prepare();
     return this.transfer;
   }
@@ -245,5 +248,33 @@ export class FtpContext {
         this.taskQueueRunning = false;
       }
     }
+  }
+}
+
+class FtpTransferCloseAwareWrapper implements FtpTransfer {
+  private readonly base: FtpTransfer;
+  private readonly onClose: () => void;
+
+  constructor(base: FtpTransfer, onClose: () => void) {
+    this.base = base;
+    this.onClose = onClose;
+  }
+
+  prepare(): Promise<void> {
+    return this.base.prepare();
+  }
+
+  input(command: string, targetLen: number, receiver: (buf: ArrayBuffer) => void): Promise<FtpResponse> {
+    return this.base.input(command, targetLen, receiver);
+  }
+
+  output(command: string, source: () => Promise<ArrayBuffer>): Promise<FtpResponse> {
+    return this.base.output(command, source);
+  }
+
+  close(): Promise<void> {
+    return this.base.close().finally(() => {
+      this.onClose();
+    });
   }
 }
