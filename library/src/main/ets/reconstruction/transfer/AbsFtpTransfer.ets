@@ -50,7 +50,7 @@ export abstract class AbsFtpTransfer implements FtpTransfer {
         receivedDataLen += data.byteLength;
       }));
       const resp = await this.context.send(command);
-      if (resp.code == 150 && !canceled) {
+      if ((resp.code == 150 || resp.code == 125) && !canceled) {
         // 服务端控制通道发了226，可能此时数据通道仍然还在传输，所以对于传入了targetLen的情况，通过收到的数据长度来判断是否结束
         // 对于没有targetLen的情况，通过检测收取数据的间隔时间，当超过200毫秒没有收到数据时，认为数据传输完毕
         const resp = await this.context.consumeNextMessage();

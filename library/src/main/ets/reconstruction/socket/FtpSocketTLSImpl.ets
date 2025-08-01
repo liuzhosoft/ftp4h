@@ -32,23 +32,24 @@ export class FtpSocketTLSImpl implements FtpSocket {
         if (this.tcpSock && (await this.tcpSock.getState()).isConnected) {
           this.sock = socket.constructTLSSocketInstance(this.tcpSock);
         } else {
-          this.sock = socket.constructTLSSocketInstance();
+          this.sock = socket.constructTLSSocketInstance(this.tcpSock);
           await this.sock.bind({ address: "0.0.0.0" });
-          await this.sock.connect({
-            address: { address: address, port: port },
-            secureOptions: {},
-            skipRemoteValidation: this.tlsOptions.skipRemoteValidation == true,
-          });
         }
         this.sock.on("close", () => {
+          FtpLogger.debug(tag, `${address}:${port} closed`);
           this.sock = undefined;
         });
         this.sock.on("error", (err) => {
+          FtpLogger.error(tag, `${address}:${port} meet error, ${JSON.stringify(err)}`);
           reject(err);
-          FtpLogger.error(tag, `socket error`, err);
         });
         this.sock.on("message", (msg) => {
           this.messageSubscribers.forEach(subscriber => subscriber(msg.message));
+        });
+        await this.sock.connect({
+          address: { address: address, port: port },
+          secureOptions: {},
+          skipRemoteValidation: this.tlsOptions.skipRemoteValidation == true,
         });
         this.connectedAddress = address;
         this.connectedPort = port;

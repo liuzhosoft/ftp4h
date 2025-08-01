@@ -66,7 +66,7 @@ export class FtpClient {
         return parseList(listDataStr);
         // FtpLogger.debug(tag, `list ${path} with cmd ${command} resp is ${resp.message}`);
       } catch (e) {
-        FtpLogger.error(tag, `list with ${cmd} failed`, e);
+        FtpLogger.error(tag, `list with ${cmd} failed ${JSON.stringify(e)}`);
       } finally {
         await transfer?.close();
       }

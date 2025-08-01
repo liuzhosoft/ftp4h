@@ -2,7 +2,7 @@ import { CharsetUtil, StringEncoding } from "../StringEncoding";
 import { AccessOptions } from "./AccessOptions";
 import { FtpResponse } from "./FtpResponse";
 import { FtpSocket, MessageSubscriber } from "./socket/FtpSocket";
-import { parseControlResponse, positiveCompletion } from "../parseControlResponse";
+import { parseControlResponse, positiveCompletion, isSingleLine, isMultiline } from "../parseControlResponse";
 import { FtpSocketTLSImpl } from "./socket/FtpSocketTLSImpl";
 import { FtpSocketTCPImpl } from "./socket/FtpSocketTCPImpl";
 import FtpLogger from "./FtpLogger";
@@ -29,6 +29,7 @@ export class FtpContext {
   private features: Map<string, string> = new Map();
   private utf8On: boolean = false;
   private transfer: FtpTransfer | undefined;
+  private dataSocketUseTls = false;
 
   get accessOptions(): AccessOptions {
     return this._accessOptions;
@@ -105,6 +106,7 @@ export class FtpContext {
       FtpLogger.debug(tag, `auth tls resp = ${JSON.stringify(ret)}`);
       if (ret.code == 234 || ret.code == 334) {
         this.commandSocket = this.commandSocket.useTls(accessOptions.tlsOptions ?? {});
+        await this.commandSocket.connect(accessOptions.host ?? "localhost", accessOptions.port ?? 21, this.timeout);
       } else {
         throw new Error("use explicit tls failed! with reply " + ret.message);
       }
@@ -127,7 +129,7 @@ export class FtpContext {
   }
 
   createSocket(): FtpSocket {
-    return this.commandSocket?.hasTls() == true ? new FtpSocketTLSImpl(this.accessOptions.tlsOptions ?? {}) :
+    return this.dataSocketUseTls ? new FtpSocketTLSImpl(this.accessOptions.tlsOptions ?? {}) :
       new FtpSocketTCPImpl();
   }
 
@@ -140,7 +142,6 @@ export class FtpContext {
       let unsubscribe: () => void = () => {
       };
       const messageSubscriber: MessageSubscriber = (data) => {
-        unsubscribe();
         const serverMsg = CharsetUtil.decode(data, this.encoding());
         if (serverMsg) {
           const completeResponse = this.partialResponse + serverMsg;
@@ -152,6 +153,7 @@ export class FtpContext {
             responses.push({ code: code, message: msg });
           });
           if (responses.length > 0) {
+            unsubscribe();
             FtpLogger.debug(tag, `${this.instanceFlag()} receive resp ${JSON.stringify(responses)}`);
             const last = responses[responses.length-1];
             resolve({
@@ -159,11 +161,7 @@ export class FtpContext {
               message: last.message,
               multiLineResponse: responses.length > 1 ? responses : undefined
             });
-          } else {
-            reject(new Error("invalid response"));
           }
-        } else {
-          reject(new Error("invalid response"));
         }
       };
       unsubscribe = this.commandSocket.subscribeMessage(messageSubscriber);
@@ -216,7 +214,8 @@ export class FtpContext {
     }
     if (this.commandSocket?.hasTls() == true) {
       await this.send("PBSZ 0");
-      await this.send("PORT P");
+      const portPResp = await this.send("PORT P");
+      this.dataSocketUseTls = positiveCompletion(portPResp.code);
     }
   }
 
