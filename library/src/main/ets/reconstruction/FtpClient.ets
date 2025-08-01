@@ -6,6 +6,7 @@ import FtpLogger from "./FtpLogger";
 import { FtpTransfer } from "./transfer/FtpTransfer";
 import { CharsetUtil } from "../StringEncoding";
 import { parseList } from "../parseList";
+import { FtpTransferController } from "./FtpTransferController";
 
 const tag = "FtpClient";
 
@@ -50,7 +51,7 @@ export class FtpClient {
         let receivedLen = 0;
         const receivedData: ArrayBuffer[] = [];
         const resp = await transfer.input(command, -1, (data) => {
-          FtpLogger.debug(tag, "\n" + CharsetUtil.decode(data, this.context.encoding()));
+          // FtpLogger.debug(tag, "\n" + CharsetUtil.decode(data, this.context.encoding()));
           receivedData.push(data);
           receivedLen += data.byteLength;
         });
@@ -63,7 +64,7 @@ export class FtpClient {
         });
         const listDataStr = CharsetUtil.decode(combinedData.buffer, this.context.encoding());
         return parseList(listDataStr);
-        FtpLogger.debug(tag, `list ${path} with cmd ${command} resp is ${resp.message}`);
+        // FtpLogger.debug(tag, `list ${path} with cmd ${command} resp is ${resp.message}`);
       } catch (e) {
         FtpLogger.error(tag, `list with ${cmd} failed`, e);
       } finally {
@@ -150,6 +151,74 @@ export class FtpClient {
     }
     this.curPath = parsed[1];
     return parsed[1];
+  }
+
+  async size(path: string): Promise<number> {
+    path = await this.toAbsolutePath(path);
+    const resp = await this.context.send(`SIZE ${path}`);
+    const size = parseInt(resp.message.slice(4), 10);
+    if (Number.isNaN(size)) {
+      throw new Error(`get size for ${path} failed! ${resp.message}`);
+    }
+    return size;
+  }
+
+  async read(
+    path: string,
+    onReceiveData: (data: ArrayBuffer) => void,
+    onReady?: (controller: FtpTransferController) => void,
+    offset?: number,
+    targetLen?: number,
+  ): Promise<void> {
+    path = await this.toAbsolutePath(path);
+    let transfer: FtpTransfer | undefined;
+    try {
+      transfer = await this.context.prepareTransfer();
+      const controller: FtpTransferController = {
+        cancel: async () => {
+          await transfer?.close();
+        }
+      };
+      onReady?.(controller);
+      if (offset != undefined && offset > 0) {
+        const restResp = await this.context.send(`REST ${offset}`);
+        if (!positiveIntermediate(restResp.code)) {
+          throw new Error(`seek to ${offset} failed`);
+        }
+      }
+      targetLen = targetLen ? targetLen : (await this.size(path));
+      const resp = await transfer?.input(`RETR ${path}`, targetLen, (data) => onReceiveData(data));
+      if (!positiveCompletion(resp.code)) {
+        throw new Error("download failed " + resp.message);
+      }
+    } finally {
+      await transfer?.close();
+    }
+  }
+
+  async write(
+    path: string,
+    source: () => Promise<ArrayBuffer>,
+    onReady?: (controller: FtpTransferController) => void,
+    onSend?: (currentSendLen: number, totalSendLen: number) => void
+  ): Promise<void> {
+    path = await this.toAbsolutePath(path);
+    let transfer: FtpTransfer | undefined;
+    try {
+      transfer = await this.context.prepareTransfer();
+      const controller: FtpTransferController = {
+        cancel: async () => {
+          await transfer?.close();
+        }
+      };
+      onReady?.(controller);
+      const resp = await transfer?.output(`STOR ${path}`, () => source(), (cur, total) => onSend?.(cur, total));
+      if (!positiveCompletion(resp.code)) {
+        throw new Error("download failed " + resp.message);
+      }
+    } finally {
+      await transfer?.close();
+    }
   }
 
   private async clearWorkingDir(): Promise<boolean> {
