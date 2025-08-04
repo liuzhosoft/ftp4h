@@ -1,12 +1,13 @@
-import { FileInfo } from "../models/FileInfo";
+import { FileInfo } from "./models/FileInfo";
 import { AccessOptions } from "./AccessOptions";
 import { FtpContext } from "./FtpContext";
-import { positiveCompletion, positiveIntermediate } from "../parser/parseControlResponse";
+import { positiveCompletion, positiveIntermediate } from "./parser/parseControlResponse";
 import FtpLogger from "./FtpLogger";
 import { FtpTransfer } from "./transfer/FtpTransfer";
-import { CharsetUtil } from "../util/StringEncoding";
-import { parseList } from "../parser/parseList";
+import { CharsetUtil } from "./util/StringEncoding";
+import { parseList } from "./parser/parseList";
 import { FtpTransferController } from "./FtpTransferController";
+import { FtpUtils } from "./FtpUtils";
 
 const tag = "FtpClient";
 
@@ -15,7 +16,7 @@ export class FtpClient {
   private listCommands: string[] = [];
   private curPath: string = "";
 
-  constructor(timeout: number) {
+  constructor(timeout: number = 30000) {
     this.context = new FtpContext(timeout);
   }
 
@@ -28,11 +29,10 @@ export class FtpClient {
     return positiveCompletion(resp.code);
   }
 
-  async list(path: string): Promise<FileInfo[]> {
+  async list(path: string, includeHiddenFile: boolean = false): Promise<FileInfo[]> {
     path = await this.toAbsolutePath(path);
     if (this.listCommands.length == 0) {
-      const listHiddenFile = this.context.accessOptions.listHiddenFile == true;
-      const listCommands = listHiddenFile ? ["LIST -a", "LIST"] : ["LIST"];
+      const listCommands = includeHiddenFile ? ["LIST -a", "LIST"] : ["LIST"];
       if (this.context.hasFeature("MLST")) {
         listCommands.splice(0, 0, "MLSD");
       }
@@ -163,6 +163,25 @@ export class FtpClient {
     return size;
   }
 
+  async mkdirs(path: string): Promise<boolean> {
+    path = await this.toAbsolutePath(path);
+    if (!(await this.cd(path))) {
+      const paths = path.split("/");
+      if (!(await this.cd("/"))) {
+        return false;
+      }
+      for (const subPath of paths) {
+        if (subPath && !(await this.cd(subPath))) {
+          const mkdResp = await this.context.send(`MKD ${subPath}`);
+          if (!positiveCompletion(mkdResp.code)) {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
   async read(
     path: string,
     onReceiveData: (data: ArrayBuffer) => void,
@@ -219,6 +238,10 @@ export class FtpClient {
     } finally {
       await transfer?.close();
     }
+  }
+
+  async close() {
+    await this.context?.close();
   }
 
   private async clearWorkingDir(): Promise<boolean> {

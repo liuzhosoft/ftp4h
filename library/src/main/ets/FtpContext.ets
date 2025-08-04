@@ -1,8 +1,8 @@
-import { CharsetUtil, StringEncoding } from "../util/StringEncoding";
+import { CharsetUtil, StringEncoding } from "./util/StringEncoding";
 import { AccessOptions } from "./AccessOptions";
 import { FtpResponse } from "./FtpResponse";
 import { FtpSocket, MessageSubscriber } from "./socket/FtpSocket";
-import { parseControlResponse, positiveCompletion, isSingleLine, isMultiline } from "../parser/parseControlResponse";
+import { parseControlResponse, positiveCompletion, isSingleLine, isMultiline } from "./parser/parseControlResponse";
 import { FtpSocketTLSImpl } from "./socket/FtpSocketTLSImpl";
 import { FtpSocketTCPImpl } from "./socket/FtpSocketTCPImpl";
 import FtpLogger from "./FtpLogger";
@@ -58,7 +58,7 @@ export class FtpContext {
     if (this.transfer) {
       throw new Error("illegal state, already has a transfer session");
     }
-    this.transfer = new FtpTransferCloseAwareWrapper(new FtpTransferIpv6Impl(this), () => {
+    this.transfer = new FtpTransferCloseAwareWrapper(new FtpTransferIpv4Impl(this), () => {
       this.transfer = undefined;
     });
     await this.transfer.prepare();

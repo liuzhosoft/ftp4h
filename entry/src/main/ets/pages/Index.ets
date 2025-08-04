@@ -35,17 +35,6 @@ struct Index {
               url: "pages/SamplePage"
             });
           });
-        Button("press page")
-          .fontSize(14)
-          .height(30)
-          .visibility(Visibility.Hidden)
-          .margin({ left: 10, top: 50 })
-          .fontWeight(FontWeight.Bold)
-          .onClick(() => {
-            router.pushUrl({
-              url: "pages/PressPage"
-            });
-          });
       }
       .width("100%")
       .height("100%");

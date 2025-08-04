@@ -1,4 +1,4 @@
-import { StringEncoding } from "../util/StringEncoding";
+import { StringEncoding } from "./util/StringEncoding";
 import { FtpTlsOptions } from "./socket/FtpTlsOptions";
 
 export interface AccessOptions {
@@ -18,5 +18,4 @@ export interface AccessOptions {
   readonly secureMode?: boolean | "implicit";
   readonly tlsOptions?: FtpTlsOptions;
   readonly encoding?: StringEncoding;
-  readonly listHiddenFile?: boolean;
 }

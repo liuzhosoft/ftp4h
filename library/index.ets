@@ -1,1 +1,9 @@
-export { FtpClient as FtpClient2 } from "./src/main/ets/reconstruction/FtpClient"
+export { FtpClient } from "./src/main/ets/FtpClient";
+
+export { FtpTransferController } from "./src/main/ets/FtpTransferController";
+
+export { AccessOptions } from "./src/main/ets/AccessOptions";
+
+export { StringEncoding } from "./src/main/ets/util/StringEncoding";
+
+export { FileInfo } from "./src/main/ets/models/FileInfo";
