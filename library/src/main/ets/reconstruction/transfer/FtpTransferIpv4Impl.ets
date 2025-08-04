@@ -18,7 +18,6 @@ export class FtpTransferIpv4Impl extends AbsFtpTransfer {
       parsedResp[0] = controlHost.address;
     }
     return {
-      socket: this.context.createSocket(),
       address: parsedResp[0],
       port: parsedResp[1]
     };

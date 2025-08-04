@@ -7,7 +7,6 @@ import { systemDateTime } from "@kit.BasicServicesKit";
 import { positiveCompletion } from "../../parseControlResponse";
 
 export interface DataSocketOptions {
-  socket: FtpSocket;
   address: string;
   port: number;
 }
@@ -25,7 +24,7 @@ export abstract class AbsFtpTransfer implements FtpTransfer {
 
   async prepare(): Promise<void> {
     const options = await this.prepareInternal();
-    this.dataSocket = options.socket;
+    this.dataSocket = this.context.createSocket();
     FtpLogger.debug(tag, `${this.context.instanceFlag()} prepare transfer, data port is ${options.port}`);
     await this.dataSocket?.connect(options.address, options.port, this.context.timeout);
   }

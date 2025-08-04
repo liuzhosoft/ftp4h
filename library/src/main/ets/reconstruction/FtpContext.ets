@@ -10,6 +10,7 @@ import { FtpTransfer } from "./transfer/FtpTransfer";
 import { FtpTransferIpv4Impl } from "./transfer/FtpTransferIpv4Impl";
 import { socket } from "@kit.NetworkKit";
 import { rcp } from "@kit.RemoteCommunicationKit";
+import { FtpTransferIpv6Impl } from "./transfer/FtpTransferIpv6Impl";
 
 const tag = `FtpContext`;
 
@@ -57,7 +58,7 @@ export class FtpContext {
     if (this.transfer) {
       throw new Error("illegal state, already has a transfer session");
     }
-    this.transfer = new FtpTransferCloseAwareWrapper(new FtpTransferIpv4Impl(this), () => {
+    this.transfer = new FtpTransferCloseAwareWrapper(new FtpTransferIpv6Impl(this), () => {
       this.transfer = undefined;
     });
     await this.transfer.prepare();
@@ -77,7 +78,7 @@ export class FtpContext {
   }
 
   async access(accessOptions: AccessOptions): Promise<FtpResponse> {
-    FtpLogger.debug(tag, `access to ${this.instanceFlag()}`);
+    FtpLogger.debug(tag, `access to ${this.instanceFlag(accessOptions)}`);
     let optionsChanged = false;
     for (const key of Object.keys(accessOptions)) {
       if ((accessOptions as object)[key] !== (this._accessOptions as object)[key]) {
@@ -108,7 +109,8 @@ export class FtpContext {
         this.commandSocket = this.commandSocket.useTls(accessOptions.tlsOptions ?? {});
         await this.commandSocket.connect(accessOptions.host ?? "localhost", accessOptions.port ?? 21, this.timeout);
       } else {
-        throw new Error("use explicit tls failed! with reply " + ret.message);
+        // throw new Error("use explicit tls failed! with reply " + ret.message);
+        FtpLogger.info(tag, `use explicit tls failed, maybe server not support!`);
       }
     }
 
@@ -120,8 +122,9 @@ export class FtpContext {
     return welcomePromise;
   }
 
-  instanceFlag(): string {
-    return `${this._accessOptions.user}@${this._accessOptions.host}:${this._accessOptions.port}`;
+  instanceFlag(options?: AccessOptions): string {
+    options = options ?? this._accessOptions;
+    return `${options.user}@${options.host}:${options.port}`;
   }
 
   async getRemoteAddress(): Promise<socket.NetAddress | undefined> {

@@ -3,6 +3,7 @@ import { socket } from "@kit.NetworkKit";
 import { FtpTlsOptions } from "./FtpTlsOptions";
 import { FtpSocketTLSImpl } from "./FtpSocketTLSImpl";
 import FtpLogger from "../FtpLogger";
+import { FtpUtils } from "../FtpUtils";
 
 const tag = "FtpSocketTCPImpl";
 
@@ -31,9 +32,11 @@ export class FtpSocketTCPImpl implements FtpSocket {
         this.sock.on("message", (msg) => {
           this.messageSubscribers.forEach(subscriber => subscriber(msg.message));
         });
-        await this.sock.bind({ address: "0.0.0.0" });
+        const isIpv6 = FtpUtils.isIPv6(address);
+        const isIpv4 = FtpUtils.isIPv4(address);
+        await this.sock.bind({ address: isIpv6 ? "::" : "0.0.0.0", family: isIpv6 ? 2 : 1 });
         await this.sock.connect({
-          address: { address: address, port: port },
+          address: { address: address, port: port, family: isIpv6 ? 2 : isIpv4 ? 1 : 3 },
           timeout: timeout ? timeout : 30000
         });
         this.connectedAddress = address;

@@ -2,6 +2,7 @@ import { FtpSocket, MessageSubscriber } from "./FtpSocket";
 import { socket } from "@kit.NetworkKit";
 import { FtpTlsOptions } from "./FtpTlsOptions";
 import FtpLogger from "../FtpLogger";
+import { FtpUtils } from "../FtpUtils";
 
 const tag = "FtpSocketTLSImpl";
 
@@ -29,11 +30,13 @@ export class FtpSocketTLSImpl implements FtpSocket {
         if (this.sock) {
           await this.sock.close();
         }
+        const isIpv6 = FtpUtils.isIPv6(address);
+        const isIpv4 = FtpUtils.isIPv4(address);
         if (this.tcpSock && (await this.tcpSock.getState()).isConnected) {
           this.sock = socket.constructTLSSocketInstance(this.tcpSock);
         } else {
           this.sock = socket.constructTLSSocketInstance(this.tcpSock);
-          await this.sock.bind({ address: "0.0.0.0" });
+          await this.sock.bind({ address: isIpv6 ? "::" : "0.0.0.0", family: isIpv6 ? 2 : 1 });
         }
         this.sock.on("close", () => {
           FtpLogger.debug(tag, `${address}:${port} closed`);
@@ -47,7 +50,7 @@ export class FtpSocketTLSImpl implements FtpSocket {
           this.messageSubscribers.forEach(subscriber => subscriber(msg.message));
         });
         await this.sock.connect({
-          address: { address: address, port: port },
+          address: { address: address, port: port, family: isIpv6 ? 2 : isIpv4 ? 1 : 3 },
           secureOptions: {},
           skipRemoteValidation: this.tlsOptions.skipRemoteValidation == true,
         });
