@@ -71,11 +71,13 @@ export class FtpContextImpl implements FtpContext {
           }
         });
         await transfer.prepare();
+        this.transfer = transfer;
+        return transfer;
       } catch (e) {
       }
     }
 
-    return this.transfer;
+    throw new Error("prepare transfer failed");
   }
 
   send(command: string): Promise<FtpResponse> {
