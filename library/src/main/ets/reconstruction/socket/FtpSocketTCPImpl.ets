@@ -35,8 +35,10 @@ export class FtpSocketTCPImpl implements FtpSocket {
         const isIpv6 = FtpUtils.isIPv6(address);
         const isIpv4 = FtpUtils.isIPv4(address);
         await this.sock.bind({ address: isIpv6 ? "::" : "0.0.0.0", family: isIpv6 ? 2 : 1 });
+        const netAddress: socket.NetAddress = { address: address, port: port, family: isIpv6 ? 2 : isIpv4 ? 1 : 3 };
+        FtpLogger.debug(tag, `connect to ${JSON.stringify(netAddress)}`);
         await this.sock.connect({
-          address: { address: address, port: port, family: isIpv6 ? 2 : isIpv4 ? 1 : 3 },
+          address: netAddress,
           timeout: timeout ? timeout : 30000
         });
         this.connectedAddress = address;

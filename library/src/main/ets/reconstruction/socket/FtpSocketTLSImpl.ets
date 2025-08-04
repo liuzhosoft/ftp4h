@@ -3,6 +3,7 @@ import { socket } from "@kit.NetworkKit";
 import { FtpTlsOptions } from "./FtpTlsOptions";
 import FtpLogger from "../FtpLogger";
 import { FtpUtils } from "../FtpUtils";
+import { JSON } from "@kit.ArkTS";
 
 const tag = "FtpSocketTLSImpl";
 
@@ -35,7 +36,7 @@ export class FtpSocketTLSImpl implements FtpSocket {
         if (this.tcpSock && (await this.tcpSock.getState()).isConnected) {
           this.sock = socket.constructTLSSocketInstance(this.tcpSock);
         } else {
-          this.sock = socket.constructTLSSocketInstance(this.tcpSock);
+          this.sock = socket.constructTLSSocketInstance();
           await this.sock.bind({ address: isIpv6 ? "::" : "0.0.0.0", family: isIpv6 ? 2 : 1 });
         }
         this.sock.on("close", () => {
@@ -49,8 +50,10 @@ export class FtpSocketTLSImpl implements FtpSocket {
         this.sock.on("message", (msg) => {
           this.messageSubscribers.forEach(subscriber => subscriber(msg.message));
         });
+        const netAddress: socket.NetAddress = { address: address, port: port, family: isIpv6 ? 2 : isIpv4 ? 1 : 3 };
+        FtpLogger.debug(tag, `connect to ${JSON.stringify(netAddress)}`);
         await this.sock.connect({
-          address: { address: address, port: port, family: isIpv6 ? 2 : isIpv4 ? 1 : 3 },
+          address: netAddress,
           secureOptions: {},
           skipRemoteValidation: this.tlsOptions.skipRemoteValidation == true,
         });
@@ -62,6 +65,7 @@ export class FtpSocketTLSImpl implements FtpSocket {
         });
         resolve();
       } catch (e) {
+        FtpLogger.error(tag, `connect to ${address}:${port} failed, ${JSON.stringify(e)}`, e);
         reject(e);
       }
     });
