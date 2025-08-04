@@ -58,6 +58,12 @@ export abstract class AbsFtpTransfer implements FtpTransfer {
           if (canceled) {
             return;
           }
+          if (await (this.dataSocket?.isConnected()) != true) {
+            FtpLogger.debug(tag,
+              `${this.context.instanceFlag()} input by cmd ${command} complete because data socket closed`);
+            resolve(resp);
+            return;
+          }
           if (targetLen > 0 && receivedDataLen >= targetLen) {
             FtpLogger.debug(tag,
               `${this.context.instanceFlag()} input by cmd ${command} complete because received full data`);
