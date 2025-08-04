@@ -1,13 +1,13 @@
 import { FileInfo } from "./models/FileInfo";
 import { AccessOptions } from "./AccessOptions";
-import { FtpContext } from "./FtpContext";
+import { FtpContextImpl } from "./FtpContextImpl";
 import { positiveCompletion, positiveIntermediate } from "./parser/parseControlResponse";
 import FtpLogger from "./FtpLogger";
 import { FtpTransfer } from "./transfer/FtpTransfer";
 import { CharsetUtil } from "./util/StringEncoding";
 import { parseList } from "./parser/parseList";
 import { FtpTransferController } from "./FtpTransferController";
-import { FtpUtils } from "./FtpUtils";
+import { FtpContext } from "./FtpContext";
 
 const tag = "FtpClient";
 
@@ -17,7 +17,7 @@ export class FtpClient {
   private curPath: string = "";
 
   constructor(timeout: number = 30000) {
-    this.context = new FtpContext(timeout);
+    this.context = new FtpContextImpl(timeout);
   }
 
   isConnected(): Promise<boolean> {

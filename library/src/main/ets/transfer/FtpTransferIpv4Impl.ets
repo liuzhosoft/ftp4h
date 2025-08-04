@@ -1,11 +1,6 @@
-import { FtpContext } from "../FtpContext";
 import { AbsFtpTransfer, DataSocketOptions } from "./AbsFtpTransfer";
 
 export class FtpTransferIpv4Impl extends AbsFtpTransfer {
-  constructor(context: FtpContext) {
-    super(context);
-  }
-
   async prepareInternal(): Promise<DataSocketOptions> {
     const pasvResp = await this.context.send("PASV");
     const parsedResp = this.parsePasvResponse(pasvResp.message);

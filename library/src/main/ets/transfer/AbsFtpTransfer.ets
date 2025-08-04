@@ -1,10 +1,10 @@
-import { FtpContext } from "../FtpContext";
 import FtpLogger from "../FtpLogger";
 import { FtpResponse } from "../FtpResponse";
 import { FtpSocket } from "../socket/FtpSocket";
 import { FtpTransfer } from "./FtpTransfer";
 import { systemDateTime } from "@kit.BasicServicesKit";
 import { positiveCompletion } from "../parser/parseControlResponse";
+import { FtpContext } from "../FtpContext";
 
 export interface DataSocketOptions {
   address: string;
