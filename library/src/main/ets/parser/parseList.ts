@@ -14,7 +14,7 @@
  */
 
 
-import { FileInfo } from "./FileInfo";
+import { FileInfo } from "../models/FileInfo";
 import * as dosParser from "./parseListDOS";
 import * as unixParser from "./parseListUnix";
 import * as mlsdParser from "./parseListMLSD";

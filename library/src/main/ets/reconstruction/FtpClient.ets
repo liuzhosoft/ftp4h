@@ -1,11 +1,11 @@
-import { FileInfo } from "../FileInfo";
+import { FileInfo } from "../models/FileInfo";
 import { AccessOptions } from "./AccessOptions";
 import { FtpContext } from "./FtpContext";
-import { positiveCompletion, positiveIntermediate } from "../parseControlResponse";
+import { positiveCompletion, positiveIntermediate } from "../parser/parseControlResponse";
 import FtpLogger from "./FtpLogger";
 import { FtpTransfer } from "./transfer/FtpTransfer";
-import { CharsetUtil } from "../StringEncoding";
-import { parseList } from "../parseList";
+import { CharsetUtil } from "../util/StringEncoding";
+import { parseList } from "../parser/parseList";
 import { FtpTransferController } from "./FtpTransferController";
 
 const tag = "FtpClient";

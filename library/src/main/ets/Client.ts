@@ -17,16 +17,16 @@
 import fs from "@ohos.file.fs";
 import socket from "@ohos.net.socket";
 import { join, to } from "./PathUtil";
-import { FileInfo } from "./FileInfo";
+import { FileInfo } from "./models/FileInfo";
 import { ClientError, FTPContext, FTPError, FTPResponse } from "./FtpContext";
-import { parseList as parseListAutoDetect } from "./parseList";
+import { parseList as parseListAutoDetect } from "./parser/parseList";
 import { ProgressHandler, ProgressTracker } from "./ProgressTracker";
-import { parseMLSxDate } from "./parseListMLSD";
+import { parseMLSxDate } from "./parser/parseListMLSD";
 import { describeAddress, describeTLS, upgradeSocket } from "./netUtils";
 import { downloadTo, enterPassiveModeIPv4, enterPassiveModeIPv6, UploadCommand, uploadFrom } from "./transfer";
-import { isMultiline, positiveCompletion } from "./parseControlResponse";
+import { isMultiline, positiveCompletion } from "./parser/parseControlResponse";
 
-import { CharsetUtil, StringEncoding } from "./StringEncoding";
+import { CharsetUtil, StringEncoding } from "./util/StringEncoding";
 import { UploadOptions } from "./models/UploadOptions";
 import { FtpReadStream } from "./models/FtpReadStream";
 import { FtpWriteStream } from "./models/FtpWriteStream";

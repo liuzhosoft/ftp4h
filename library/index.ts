@@ -18,11 +18,11 @@ export * from "./src/main/ets/Client";
 
 export * from "./src/main/ets/FtpContext";
 
-export * from "./src/main/ets/FileInfo";
+export * from "./src/main/ets/models/FileInfo";
 
-export * from "./src/main/ets/parseList";
+export * from "./src/main/ets/parser/parseList";
 
-export * from "./src/main/ets/StringEncoding";
+export * from "./src/main/ets/util/StringEncoding";
 
 export * from "./src/main/ets/models/FtpReadStream";
 

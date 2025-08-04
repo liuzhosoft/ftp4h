@@ -15,8 +15,8 @@
 
 
 import socket from "@ohos.net.socket";
-import { parseControlResponse } from "./parseControlResponse";
-import { CharsetUtil, StringEncoding } from "./StringEncoding";
+import { parseControlResponse } from "./parser/parseControlResponse";
+import { CharsetUtil, StringEncoding } from "./util/StringEncoding";
 import { to } from "./PathUtil";
 import connection from "@ohos.net.connection";
 

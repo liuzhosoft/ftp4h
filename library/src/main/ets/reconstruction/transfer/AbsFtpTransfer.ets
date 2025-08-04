@@ -4,7 +4,7 @@ import { FtpResponse } from "../FtpResponse";
 import { FtpSocket } from "../socket/FtpSocket";
 import { FtpTransfer } from "./FtpTransfer";
 import { systemDateTime } from "@kit.BasicServicesKit";
-import { positiveCompletion } from "../../parseControlResponse";
+import { positiveCompletion } from "../../parser/parseControlResponse";
 
 export interface DataSocketOptions {
   address: string;

@@ -14,7 +14,7 @@
  */
 
 
-import { FileInfo, FileType } from "./FileInfo";
+import { FileInfo, FileType } from "../models/FileInfo";
 
 const JA_MONTH = "\u6708";
 const JA_DAY = "\u65e5";

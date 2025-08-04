@@ -1,4 +1,4 @@
-import { StringEncoding } from "../StringEncoding";
+import { StringEncoding } from "../util/StringEncoding";
 import { FtpTlsOptions } from "./socket/FtpTlsOptions";
 
 export interface AccessOptions {

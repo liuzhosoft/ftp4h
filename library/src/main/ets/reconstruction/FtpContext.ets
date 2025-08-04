@@ -1,8 +1,8 @@
-import { CharsetUtil, StringEncoding } from "../StringEncoding";
+import { CharsetUtil, StringEncoding } from "../util/StringEncoding";
 import { AccessOptions } from "./AccessOptions";
 import { FtpResponse } from "./FtpResponse";
 import { FtpSocket, MessageSubscriber } from "./socket/FtpSocket";
-import { parseControlResponse, positiveCompletion, isSingleLine, isMultiline } from "../parseControlResponse";
+import { parseControlResponse, positiveCompletion, isSingleLine, isMultiline } from "../parser/parseControlResponse";
 import { FtpSocketTLSImpl } from "./socket/FtpSocketTLSImpl";
 import { FtpSocketTCPImpl } from "./socket/FtpSocketTCPImpl";
 import FtpLogger from "./FtpLogger";
