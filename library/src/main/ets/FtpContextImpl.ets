@@ -151,20 +151,52 @@ export class FtpContextImpl implements FtpContext {
       new FtpSocketTCPImpl();
   }
 
+  /**
+   * partialResponse中有有效的完整response，直接取出返回，并将剩余部分重新赋值到partialResponse
+   */
+  private takeResponseFromPartialResponse(): FtpResponse | undefined {
+    if (!this.partialResponse) {
+      return undefined;
+    }
+    const parsed = parseControlResponse(this.partialResponse, true);
+    if (parsed.messages.length <= 0) {
+      return undefined;
+    }
+    this.partialResponse = parsed.rest;
+    const msg = parsed.messages[0];
+    const code = parseInt(msg.substring(0, 3), 10);
+    return {
+      code: code,
+      message: msg
+    };
+  }
+
   consumeNextMessage(): Promise<FtpResponse> {
     return new Promise(async (resolve, reject) => {
       if (!this.commandSocket) {
         reject(new Error("invalid state, commandSocket is not ready!"));
         return;
       }
+      const cachedResp = this.takeResponseFromPartialResponse();
+      if (cachedResp) {
+        FtpLogger.debug(tag,
+          `${this.instanceFlag()} taked response from PartialResponse: ${JSON.stringify(cachedResp)}`);
+        resolve(cachedResp);
+        return;
+      }
       let unsubscribe: () => void = () => {
       };
       const messageSubscriber: MessageSubscriber = (data) => {
         const serverMsg = CharsetUtil.decode(data, this.encoding());
+        FtpLogger.debug(tag,
+          `${this.instanceFlag()} receive message: ${serverMsg}\npartialResp=${this.partialResponse}`);
         if (serverMsg) {
           const completeResponse = this.partialResponse + serverMsg;
-          const parsed = parseControlResponse(completeResponse);
+          //completeResponse 可能包含多个有效的response，解析第一条返回，其余的继续存下来等待后续的consumer
+          const parsed = parseControlResponse(completeResponse, true);
           this.partialResponse = parsed.rest;
+          FtpLogger.debug(tag,
+            `${this.instanceFlag()} record partinalResp: ${this.partialResponse}`);
           const responses: FtpResponse[] = [];
           parsed.messages.forEach((msg) => {
             const code = parseInt(msg.substring(0, 3), 10);
@@ -225,7 +257,7 @@ export class FtpContextImpl implements FtpContext {
       const utf8Resp = await this.send("OPTS UTF8 ON");
       this.utf8On = utf8Resp.code == 200;
       FtpLogger.info(tag,
-        `utf8 on for ${this.instanceFlag()}`);
+        `utf8 on for ${this.instanceFlag()} ${this.utf8On ? "success" : "failed"} resp=${JSON.stringify(utf8Resp)}`);
     }
     if (this.features.has("MLST")) {
       await this.send("OPTS MLST type;size;modify;unique;unix.mode;unix.owner;unix.group;unix.ownername;unix.groupname;");
