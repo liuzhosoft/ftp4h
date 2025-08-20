@@ -4,6 +4,8 @@ import { FtpTlsOptions } from "./FtpTlsOptions";
 import { FtpSocketTLSImpl } from "./FtpSocketTLSImpl";
 import FtpLogger from "../FtpLogger";
 import { FtpUtils } from "../FtpUtils";
+import { BusinessError } from "@ohos.base";
+import deviceInfo from "@ohos.deviceInfo";
 
 const tag = "FtpSocketTCPImpl";
 
@@ -35,7 +37,11 @@ export class FtpSocketTCPImpl implements FtpSocket {
         const isIpv6 = FtpUtils.isIPv6(address);
         const isIpv4 = FtpUtils.isIPv4(address);
         await this.sock.bind({ address: isIpv6 ? "::" : "0.0.0.0", family: isIpv6 ? 2 : 1 });
-        const netAddress: socket.NetAddress = { address: address, port: port, family: isIpv6 ? 2 : isIpv4 ? 1 : 3 };
+        const netAddress: socket.NetAddress = {
+          address: address,
+          port: port,
+          family: isIpv6 ? 2 : (isIpv4 ? 1 : (deviceInfo.sdkApiVersion >= 18 ? 3 : 1))
+        };
         FtpLogger.debug(tag, `connect to ${JSON.stringify(netAddress)}`);
         await this.sock.connect({
           address: netAddress,
@@ -44,11 +50,13 @@ export class FtpSocketTCPImpl implements FtpSocket {
         this.connectedAddress = address;
         this.connectedPort = port;
         this.timeout = timeout;
-        this.sock.setExtraOptions({
-          socketTimeout: 0
+        await this.sock.setExtraOptions({
+          socketTimeout: 0,
+          TCPNoDelay: true,
         });
         resolve();
       } catch (e) {
+        FtpLogger.error(tag, `connect to [${address}]:${port} failed: ${JSON.stringify(e as BusinessError)}`, e);
         reject(e);
       }
     });
