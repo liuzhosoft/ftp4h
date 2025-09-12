@@ -33,13 +33,15 @@ export class FtpSocketTLSImpl implements FtpSocket {
         if (this.sock) {
           await this.sock.close();
         }
-        const isIpv6 = FtpUtils.isIPv6(address);
-        const isIpv4 = FtpUtils.isIPv4(address);
+        const connectAddress = await FtpUtils.buildNetAddress(address, port);
         if (this.tcpSock && (await this.tcpSock.getState()).isConnected) {
           this.sock = socket.constructTLSSocketInstance(this.tcpSock);
         } else {
           this.sock = socket.constructTLSSocketInstance();
-          await this.sock.bind({ address: isIpv6 ? "::" : "0.0.0.0", family: isIpv6 ? 2 : 1 });
+          await this.sock.bind({
+            address: connectAddress.family == 2 ? "::" : "0.0.0.0",
+            family: connectAddress.family == 2 ? 2 : 1
+          });
         }
         this.sock.on("close", () => {
           FtpLogger.debug(tag, `${address}:${port} closed`);
@@ -52,14 +54,9 @@ export class FtpSocketTLSImpl implements FtpSocket {
         this.sock.on("message", (msg) => {
           this.messageSubscribers.forEach(subscriber => subscriber(msg.message));
         });
-        const netAddress: socket.NetAddress = {
-          address: address,
-          port: port,
-          family: isIpv6 ? 2 : (isIpv4 ? 1 : (deviceInfo.sdkApiVersion >= 18 ? 3 : 1))
-        };
-        FtpLogger.debug(tag, `connect to ${JSON.stringify(netAddress)}`);
+        FtpLogger.debug(tag, `connect to ${JSON.stringify(connectAddress)}`);
         await this.sock.connect({
-          address: netAddress,
+          address: connectAddress,
           secureOptions: {},
           skipRemoteValidation: this.tlsOptions.skipRemoteValidation == true,
         });

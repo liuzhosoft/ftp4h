@@ -34,17 +34,14 @@ export class FtpSocketTCPImpl implements FtpSocket {
         this.sock.on("message", (msg) => {
           this.messageSubscribers.forEach(subscriber => subscriber(msg.message));
         });
-        const isIpv6 = FtpUtils.isIPv6(address);
-        const isIpv4 = FtpUtils.isIPv4(address);
-        await this.sock.bind({ address: isIpv6 ? "::" : "0.0.0.0", family: isIpv6 ? 2 : 1 });
-        const netAddress: socket.NetAddress = {
-          address: address,
-          port: port,
-          family: isIpv6 ? 2 : (isIpv4 ? 1 : (deviceInfo.sdkApiVersion >= 18 ? 3 : 1))
-        };
-        FtpLogger.debug(tag, `connect to ${JSON.stringify(netAddress)}`);
+        const connectAddress = await FtpUtils.buildNetAddress(address, port);
+        await this.sock.bind({
+          address: connectAddress.family == 2 ? "::" : "0.0.0.0",
+          family: connectAddress.family == 2 ? 2 : 1
+        });
+        FtpLogger.debug(tag, `connect to ${JSON.stringify(connectAddress)}`);
         await this.sock.connect({
-          address: netAddress,
+          address: connectAddress,
           timeout: timeout ? timeout : 30000
         });
         this.connectedAddress = address;
