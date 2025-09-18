@@ -6,6 +6,8 @@ ftp4h (ftp for harmony) 是适用于Harmony的ftp客户端.
 
 本项目已用于产品《流舟文件》经大量用户验证，欢迎反馈问题以及提交PR。
 
+**ftp4h的2.0版本经过重构，存在API变动及结构调整。**
+
 ## 下载安装
 
 ```shell
@@ -14,50 +16,80 @@ ohpm install @liuzhosoft/ftp4h
 
 ## 使用说明
 
-注意：全局搜索项目中的‘xxx’，需要替换修改为真实的邮箱，账号密码,服务器地址。
-如需测试ftps加密传输，需要提前准备好自签名证书放置于src/main/resources/rawfile文件夹下，同时替换SamplePage.ets文件的loginServer方法的证书名称。
+- 登录到目标服务器
 
-## 注意事项
+```extendtypescript
+const ftpClient = new FtpClient();
+ftpClient.access({
+  host: "192.168.1.1",
+  port: 21,
+  user: "ftpuser",
+  password: "ftppwd",
+  encoding: "utf-8"
+});
+```
 
-- **download接口建议放在IO线程**
+- 获取文件列表
 
-  在网速非常快的环境中下载大文件，会造成UI线程的阻塞以及内存溢出
+```extendtypescript
+ftpClient.list("/");
+```
 
-## 接口说明
+- 读取/下载文件
 
-| 接口名             | 参数                            | 返回值                 | 说明                            |
-|-----------------|-------------------------------|---------------------|-------------------------------|
-| access          | AccessOptions                 | FTPResponse         | 登录FTP服务器                      |
-| list            | string                        | FileInfo            | 获取文件列表                        |
-| size            | string                        | number              | 获取文件大小                        |
-| uploadFrom      | FtpReadStream/string, string  | FTPResponse         | 上传文件                          |
-| downloadTo      | FtpWriteStream/string, string | FTPResponse         | 下载文件                          |
-| features        | 无                             | Map<string, string> | 获取服务器能力                       |
-| cd              | string                        | FTPResponse         | 设置工作目录                        |
-| cdup            | 无                             | FTPResponse         | 从当前工作目录切换到父目录                 |
-| remove          | string                        | FTPResponse         | 删除文件                          |
-| lastMod         | string                        | Date                | 获取最后修改的时间                     |
-| pwd             | 无                             | string              | 获取当前目录                        |
-| ensureDir       | string                        | void                | 确认远程是否存在目录，不存在则会自动创建          |
-| removeEmptyDir  | string                        | FTPResponse         | 删除选择的文件夹，文件夹不为空则会失败报错         |
-| removeDir       | string                        | void                | 删除选择的文件夹中所有子文件夹和文件，同时删除选择的文件夹 |
-| clearWorkingDir | 无                             | void                | 清空当前文件夹中所有子文件夹和文件，但是保留当前的文件夹  |
-| rename          | string, string                | FTPResponse         | 重命名文件                         |
-| uploadFromDir   | string, string                | void                | 上传目录                          |
-| downloadToDir   | string, string                | void                | 下载目录                          |
-| close           | 无                             | void                | 关闭连接，释放资源                     |
+```extendtypescript
+// read by stream
+ftpClient.read(
+  remoteFilePath,
+  // onReceiveData = outputStream
+  (data: ArrayBuffer) => {
+    // streaming
+  },
+  // onReady
+  (controller: FtpTransferController) => {
+    // you can cancel the transfer using controller.cancel()
+  },
+  0, // read file offset
+  fileLen, // read length
+);
+```
+
+- 上传文件
+
+```extendtypescript
+// upload by stream
+ftpClient.write(
+  remoteFilePath,
+  // source = inputStream
+  async () => {
+    // provide the source by stream
+    return ArrayBuffer;
+  },
+  // onReady
+  (controller: FtpTransferController) => {
+    // you can cancel the transfer using controller.cancel()
+  },
+  // onSend, progress callback
+  (currentSendLen: number, totalSendLen: number) => {
+    // sent $totalSendLen bytes
+  }
+);
+```
+
+- 重命名/移动
+
+```extendtypescript
+ftpClient.rename(fromPath, toPath);
+```
+
+- 删除
+
+```extendtypescript
+client.remove(path);
+client.removeDir(path);
+```
 
 ## 约束与限制
-
-在下述版本验证通过：
-
-本库当前支持ftp被动模式，不支持主动模式；支持FTP,隐式tls加密的FTPS。
-
-本库支持MLSD、Unix、DOS格式的目录列表解析。
-
-本库支持@ohos.file.fs模块支持的文件类型。
-
-本库支持Binary模式传输数据。
 
 ## 贡献代码
 
@@ -72,4 +104,3 @@ ohpm install @liuzhosoft/ftp4h
 
 ## TODO
 
-- 在支持MLST的服务器上使用MLST来获取单个文件(文件夹)信息
