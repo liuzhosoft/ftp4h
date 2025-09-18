@@ -1,0 +1,9 @@
+{
+  "routerMap": [
+    {
+      "name": "FtpPage",
+      "pageSourceFile": "src/main/ets/pages/FtpPage.ets",
+      "buildFunction": "FtpPageBuilder"
+    }
+  ]
+}
