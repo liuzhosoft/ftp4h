@@ -18,7 +18,7 @@
  * @author liuzho - 添加gbk编码支持
  */
 
-import { GBK } from "./gbk/gbk";
+import { GBK } from "../gbk/gbk";
 import buffer from "@ohos.buffer";
 
 export type StringEncoding =

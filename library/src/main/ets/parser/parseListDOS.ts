@@ -14,7 +14,7 @@
  */
 
 
-import { FileInfo, FileType } from "./FileInfo";
+import { FileInfo, FileType } from "../models/FileInfo";
 
 /**
  * This parser is based on the FTP client library source code in Apache Commons Net provided

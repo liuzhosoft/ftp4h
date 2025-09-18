@@ -27,8 +27,9 @@ export interface ParsedResponse {
  * that will each be represented by a message. A response can also be incomplete
  * and be completed on the next incoming data chunk for which case this function also
  * describes a `rest`. This function converts all CRLF to LF.
+ * @param take1 只解析1条message,剩余内容作为rest返回
  */
-export function parseControlResponse(text: string): ParsedResponse {
+export function parseControlResponse(text: string, take1: boolean): ParsedResponse {
   const lines = text.split(/\r?\n/).filter(isNotBlank);
   const messages = [];
   let startAt = 0;
@@ -39,7 +40,7 @@ export function parseControlResponse(text: string): ParsedResponse {
     if (!tokenRegex) {
       if (isMultiline(line)) {
         // Open a group by setting an expected token.
-        const token = line.substr(0, 3);
+        const token = line.substring(0, 3);
         tokenRegex = new RegExp(`^${token}(?:$| )`);
         startAt = i;
       } else if (isSingleLine(line)) {
@@ -52,10 +53,20 @@ export function parseControlResponse(text: string): ParsedResponse {
       tokenRegex = undefined;
       messages.push(lines.slice(startAt, i + 1).join(LF));
     }
+    // 要求只取1条message，并且后面还有内容时，直接返回
+    if (take1 && messages.length === 1 && (i + 1) < lines.length) {
+      return {
+        messages: messages,
+        rest: lines.slice(i + 1).join(LF) + LF
+      };
+    }
   }
   // The last group might not have been closed, report it as a rest.
   const rest = tokenRegex ? lines.slice(startAt).join(LF) + LF : "";
-  return { messages, rest };
+  return {
+    messages: messages,
+    rest: rest
+  };
 }
 
 export function isSingleLine(line: string) {

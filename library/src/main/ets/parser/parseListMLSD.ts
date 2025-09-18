@@ -14,7 +14,7 @@
  */
 
 
-import { FileInfo, FileType } from "./FileInfo";
+import { FileInfo, FileType } from "../models/FileInfo";
 
 const enum FactHandlerResult {
   Continue = 1,
