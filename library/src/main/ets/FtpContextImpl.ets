@@ -259,9 +259,10 @@ export class FtpContextImpl implements FtpContext {
       FtpLogger.info(tag,
         `utf8 on for ${this.instanceFlag()} ${this.utf8On ? "success" : "failed"} resp=${JSON.stringify(utf8Resp)}`);
     }
-    if (this.features.has("MLST")) {
-      await this.send("OPTS MLST type;size;modify;unique;unix.mode;unix.owner;unix.group;unix.ownername;unix.groupname;");
-    }
+    // 屏蔽这个操作，部分服务器如果这里协商失败，会回退成只返回文件名的状态，这个指令主要是为了减少数据包的大小，但是不同服务器支持情况不一样，所以不设置以保证兼容性
+    // if (this.features.has("MLST")) {
+    //   await this.send("OPTS MLST type;size;modify;unique;unix.mode;unix.owner;unix.group;unix.ownername;unix.groupname;");
+    // }
     if (this.commandSocket?.hasTls() == true) {
       await this.send("PBSZ 0");
       const portPResp = await this.send("PORT P");
