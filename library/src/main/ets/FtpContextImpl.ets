@@ -318,7 +318,7 @@ class FtpTransferCloseAwareWrapper implements FtpTransfer {
     return this.base.input(command, targetLen, receiver);
   }
 
-  output(command: string, source: () => Promise<ArrayBuffer>,
+  output(command: string, source: (buf:ArrayBuffer) => Promise<number>,
     onSend?: (currentSendLen: number, totalSendLen: number) => void): Promise<FtpResponse> {
     return this.base.output(command, source, onSend);
   }

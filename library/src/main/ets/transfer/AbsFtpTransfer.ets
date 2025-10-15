@@ -85,7 +85,7 @@ export abstract class AbsFtpTransfer implements FtpTransfer {
     });
   }
 
-  async output(command: string, source: () => Promise<ArrayBuffer>,
+  async output(command: string, source: (buf: ArrayBuffer) => Promise<number>,
     onSend?: (currentSendLen: number, totalSendLen: number) => void): Promise<FtpResponse> {
     if (!this.dataSocket) {
       throw new Error("Illegal state, call prepare first");
@@ -123,11 +123,11 @@ export abstract class AbsFtpTransfer implements FtpTransfer {
           FtpLogger.debug(tag, `${this.context.instanceFlag()} start write data`);
           let readLen = 0;
           let totalSendLen = 0;
+          const buf = new ArrayBuffer(1024 * 1024);
           do {
-            const data = await source();
-            readLen = data.byteLength;
+            readLen = await source(buf);
             if (readLen > 0) {
-              await this.dataSocket?.send(data);
+              await this.dataSocket?.send(buf.slice(0, readLen));
             }
             totalSendLen += readLen;
             onSend?.(readLen, totalSendLen);

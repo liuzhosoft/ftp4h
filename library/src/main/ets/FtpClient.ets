@@ -217,7 +217,7 @@ export class FtpClient {
 
   async write(
     path: string,
-    source: () => Promise<ArrayBuffer>,
+    source: (buf: ArrayBuffer) => Promise<number>,
     onReady?: (controller: FtpTransferController) => void,
     onSend?: (currentSendLen: number, totalSendLen: number) => void
   ): Promise<void> {
@@ -231,7 +231,7 @@ export class FtpClient {
         }
       };
       onReady?.(controller);
-      const resp = await transfer?.output(`STOR ${path}`, () => source(), (cur, total) => onSend?.(cur, total));
+      const resp = await transfer?.output(`STOR ${path}`, (buf) => source(buf), (cur, total) => onSend?.(cur, total));
       if (!positiveCompletion(resp.code)) {
         throw new Error("download failed " + resp.message);
       }
