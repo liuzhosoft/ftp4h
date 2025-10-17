@@ -54,7 +54,7 @@ export class FtpSocketTLSImpl implements FtpSocket {
         this.sock.on("message", (msg) => {
           this.messageSubscribers.forEach(subscriber => subscriber(msg.message));
         });
-        FtpLogger.debug(tag, `connect to ${JSON.stringify(connectAddress)}`);
+        FtpLogger.info(tag, `connect to ${JSON.stringify(connectAddress)}`);
         await this.sock.connect({
           address: connectAddress,
           secureOptions: {},

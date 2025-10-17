@@ -39,7 +39,7 @@ export class FtpSocketTCPImpl implements FtpSocket {
           address: connectAddress.family == 2 ? "::" : "0.0.0.0",
           family: connectAddress.family == 2 ? 2 : 1
         });
-        FtpLogger.debug(tag, `connect to ${JSON.stringify(connectAddress)}`);
+        FtpLogger.info(tag, `connect to ${JSON.stringify(connectAddress)}`);
         await this.sock.connect({
           address: connectAddress,
           timeout: timeout ? timeout : 30000
