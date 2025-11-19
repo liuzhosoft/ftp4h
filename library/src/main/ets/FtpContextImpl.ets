@@ -265,8 +265,8 @@ export class FtpContextImpl implements FtpContext {
     // }
     if (this.commandSocket?.hasTls() == true) {
       await this.send("PBSZ 0");
-      const portPResp = await this.send("PORT P");
-      this.dataSocketUseTls = positiveCompletion(portPResp.code);
+      const protResp = await this.send("PROT P");
+      this.dataSocketUseTls = positiveCompletion(protResp.code);
     }
   }
 
