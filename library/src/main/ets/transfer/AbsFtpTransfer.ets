@@ -124,11 +124,14 @@ export abstract class AbsFtpTransfer implements FtpTransfer {
           let readLen = 0;
           let totalSendLen = 0;
           const buf = new ArrayBuffer(1024 * 1024);
-          const view = new Uint8Array(buf);
           do {
             readLen = await source(buf);
             if (readLen > 0) {
-              await this.dataSocket?.send(view.subarray(0, readLen));
+              if (readLen === buf.byteLength) {
+                await this.dataSocket?.send(buf);
+              } else {
+                await this.dataSocket?.send(buf.slice(0, readLen));
+              }
             }
             totalSendLen += readLen;
             onSend?.(readLen, totalSendLen);
