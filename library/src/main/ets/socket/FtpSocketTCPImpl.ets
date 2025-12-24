@@ -6,6 +6,7 @@ import FtpLogger from "../FtpLogger";
 import { FtpUtils } from "../FtpUtils";
 import { BusinessError } from "@ohos.base";
 import deviceInfo from "@ohos.deviceInfo";
+import { FtpError } from "../FtpErrors";
 
 const tag = "FtpSocketTCPImpl";
 
@@ -67,7 +68,7 @@ export class FtpSocketTCPImpl implements FtpSocket {
 
   async send(data: string | ArrayBuffer): Promise<void> {
     if (!this.sock || !this.connectedAddress || !this.connectedPort) {
-      throw new Error("Invalid socket instance, please wait connect success");
+      throw new FtpError("Invalid socket instance, please wait connect success");
     }
     return this.sock.send({ data: data });
   }

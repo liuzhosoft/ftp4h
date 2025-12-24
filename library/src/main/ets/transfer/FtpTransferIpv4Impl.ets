@@ -1,3 +1,4 @@
+import { FtpError } from "../FtpErrors";
 import { AbsFtpTransfer, DataSocketOptions } from "./AbsFtpTransfer";
 
 export class FtpTransferIpv4Impl extends AbsFtpTransfer {
@@ -22,7 +23,7 @@ export class FtpTransferIpv4Impl extends AbsFtpTransfer {
     // Get host and port from PASV response, e.g. "227 Entering Passive Mode (192,168,1,100,10,229)"
     const groups = message.match(/([-\d]+,[-\d]+,[-\d]+,[-\d]+),([-\d]+),([-\d]+)/);
     if (groups === null || groups.length !== 4) {
-      throw new Error(`Can't parse response to 'PASV': ${message}`);
+      throw new FtpError(`Can't parse response to 'PASV': ${message}`);
     }
     return [groups[1].replace(/,/g, "."), (parseInt(groups[2], 10) & 255) * 256 + (parseInt(groups[3], 10) & 255)];
   }

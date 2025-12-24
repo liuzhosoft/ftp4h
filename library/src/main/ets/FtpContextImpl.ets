@@ -11,6 +11,7 @@ import { FtpTransferIpv4Impl } from "./transfer/FtpTransferIpv4Impl";
 import { socket } from "@kit.NetworkKit";
 import { FtpContext } from "./FtpContext";
 import { FtpTransferIpv6Impl } from "./transfer/FtpTransferIpv6Impl";
+import { FtpConnectFailedError, FtpError, FtpLoginFailedError } from "./FtpErrors";
 
 const tag = `FtpContext`;
 
@@ -56,9 +57,9 @@ export class FtpContextImpl implements FtpContext {
 
   async prepareTransfer(): Promise<FtpTransfer> {
     if (this.transfer) {
-      throw new Error("illegal state, already has a transfer session");
+      throw new FtpError("illegal state, already has a transfer session");
     }
-    const transferFactories = [
+    const transferFactories: (() => FtpTransfer)[] = [
       () => new FtpTransferIpv6Impl(this),
       () => new FtpTransferIpv4Impl(this)
     ];
@@ -77,7 +78,7 @@ export class FtpContextImpl implements FtpContext {
       }
     }
 
-    throw new Error("prepare transfer failed");
+    throw new FtpError("prepare transfer failed");
   }
 
   send(command: string): Promise<FtpResponse> {
@@ -114,7 +115,11 @@ export class FtpContextImpl implements FtpContext {
     }
     const welcomePromise = this.consumeNextMessage();
     FtpLogger.debug(tag, `${this.instanceFlag()} connect start`);
-    await this.commandSocket.connect(accessOptions.host ?? "localhost", accessOptions.port ?? 21, this.timeout);
+    try {
+      await this.commandSocket.connect(accessOptions.host ?? "localhost", accessOptions.port ?? 21, this.timeout);
+    } catch (e) {
+      throw new FtpConnectFailedError(`connect to ${accessOptions.host}:${accessOptions.port} failed`, e);
+    }
     await welcomePromise;
     FtpLogger.debug(tag, `${this.instanceFlag()} connect complete`);
     if (useExplicitTLS) {
@@ -122,7 +127,11 @@ export class FtpContextImpl implements FtpContext {
       FtpLogger.debug(tag, `auth tls resp = ${JSON.stringify(ret)}`);
       if (ret.code == 234 || ret.code == 334) {
         this.commandSocket = this.commandSocket.useTls(accessOptions.tlsOptions ?? {});
-        await this.commandSocket.connect(accessOptions.host ?? "localhost", accessOptions.port ?? 21, this.timeout);
+        try {
+          await this.commandSocket.connect(accessOptions.host ?? "localhost", accessOptions.port ?? 21, this.timeout);
+        } catch (e) {
+          throw new FtpConnectFailedError(`connect to ${accessOptions.host}:${accessOptions.port} use tls failed`, e);
+        }
       } else {
         // throw new Error("use explicit tls failed! with reply " + ret.message);
         FtpLogger.info(tag, `use explicit tls failed, maybe server not support!`);
@@ -174,7 +183,7 @@ export class FtpContextImpl implements FtpContext {
   consumeNextMessage(): Promise<FtpResponse> {
     return new Promise(async (resolve, reject) => {
       if (!this.commandSocket) {
-        reject(new Error("invalid state, commandSocket is not ready!"));
+        reject(new FtpError("invalid state, commandSocket is not ready!"));
         return;
       }
       const cachedResp = this.takeResponseFromPartialResponse();
@@ -229,7 +238,7 @@ export class FtpContextImpl implements FtpContext {
     });
     FtpLogger.debug(tag, `${this.instanceFlag()} loginResp = ${JSON.stringify(loginResp)}`);
     if (!positiveCompletion(loginResp.code)) {
-      throw new Error("login failed");
+      throw new FtpLoginFailedError(loginResp.message);
     }
   }
 
@@ -279,7 +288,7 @@ export class FtpContextImpl implements FtpContext {
           if (task) {
             await new Promise<void>(async (resolve) => {
               if (!this.commandSocket) {
-                task.reject(new Error("invalid state, commandSocket is not ready!"));
+                task.reject(new FtpError("invalid state, commandSocket is not ready!"));
                 resolve();
                 return;
               }
@@ -318,7 +327,7 @@ class FtpTransferCloseAwareWrapper implements FtpTransfer {
     return this.base.input(command, targetLen, receiver);
   }
 
-  output(command: string, source: (buf:ArrayBuffer) => Promise<number>,
+  output(command: string, source: (buf: ArrayBuffer) => Promise<number>,
     onSend?: (currentSendLen: number, totalSendLen: number) => void): Promise<FtpResponse> {
     return this.base.output(command, source, onSend);
   }

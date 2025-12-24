@@ -11,3 +11,5 @@ export { StringEncoding } from "./src/main/ets/util/StringEncoding";
 export { FileInfo } from "./src/main/ets/models/FileInfo";
 
 export { FtpLogger };
+
+export { FtpError, FtpLoginFailedError, FtpConnectFailedError } from "./src/main/ets/FtpErrors";

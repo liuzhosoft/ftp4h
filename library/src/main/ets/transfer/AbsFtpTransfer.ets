@@ -5,6 +5,7 @@ import { FtpTransfer } from "./FtpTransfer";
 import { systemDateTime } from "@kit.BasicServicesKit";
 import { positiveCompletion } from "../parser/parseControlResponse";
 import { FtpContext } from "../FtpContext";
+import { FtpError } from "../FtpErrors";
 
 export interface DataSocketOptions {
   address: string;
@@ -33,13 +34,13 @@ export abstract class AbsFtpTransfer implements FtpTransfer {
     FtpLogger.debug(tag, `${this.context.instanceFlag()} input by cmd ${command}, targetLen = ${targetLen}`);
     return new Promise(async (resolve, reject) => {
       if (!this.dataSocket) {
-        reject(new Error("Illegal state, call prepare first"));
+        reject(new FtpError("Illegal state, call prepare first"));
         return;
       }
       let canceled = false;
       this.runOnClose.push(() => {
         canceled = true;
-        reject(new Error("canceled"));
+        reject(new FtpError("canceled"));
       });
       let receivedDataLen = 0;
       let lastReceiveDataTime = systemDateTime.getTime();
@@ -80,7 +81,7 @@ export abstract class AbsFtpTransfer implements FtpTransfer {
         };
         monitor();
       } else {
-        reject(new Error(`input by ${command} failed, resp is ${resp.message}`));
+        reject(new FtpError(`input by ${command} failed, resp is ${resp.message}`));
       }
     });
   }
@@ -88,19 +89,19 @@ export abstract class AbsFtpTransfer implements FtpTransfer {
   async output(command: string, source: (buf: ArrayBuffer) => Promise<number>,
     onSend?: (currentSendLen: number, totalSendLen: number) => void): Promise<FtpResponse> {
     if (!this.dataSocket) {
-      throw new Error("Illegal state, call prepare first");
+      throw new FtpError("Illegal state, call prepare first");
     }
     FtpLogger.debug(tag, `${this.context.instanceFlag()} output by cmd ${command}`);
     return new Promise(async (resolve, reject) => {
       let closed = false;
       this.runOnClose.push(() => {
         closed = true;
-        reject(new Error("canceled"));
+        reject(new FtpError("canceled"));
       });
       const resp = await this.context.send(command);
       if (!closed && resp.code == 150 || resp.code == 125) {
         if ((await this.dataSocket?.isConnected()) != true) {
-          reject(new Error("dataSocket closed"));
+          reject(new FtpError("dataSocket closed"));
           return;
         }
         let dataDone = false;
@@ -116,7 +117,7 @@ export abstract class AbsFtpTransfer implements FtpTransfer {
             controlResp = resp;
             checkToComplete();
           } else {
-            reject(new Error(`write failed with ${command}, ${resp.message}`));
+            reject(new FtpError(`write failed with ${command}, ${resp.message}`));
           }
         });
         try {
@@ -145,7 +146,7 @@ export abstract class AbsFtpTransfer implements FtpTransfer {
           reject(e);
         }
       } else {
-        reject(new Error(`output with ${command} failed`));
+        reject(new FtpError(`output with ${command} failed`));
       }
     });
   }

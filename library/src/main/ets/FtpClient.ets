@@ -8,6 +8,7 @@ import { CharsetUtil } from "./util/StringEncoding";
 import { parseList } from "./parser/parseList";
 import { FtpTransferController } from "./FtpTransferController";
 import { FtpContext } from "./FtpContext";
+import { FtpError } from "./FtpErrors";
 
 const tag = "FtpClient";
 
@@ -71,7 +72,7 @@ export class FtpClient {
         await transfer?.close();
       }
     }
-    throw new Error(`list ${path} failed`);
+    throw new FtpError(`list ${path} failed`);
   }
 
   async rename(srcPath: string, dstPath: string): Promise<boolean> {
@@ -147,7 +148,7 @@ export class FtpClient {
     const resp = await this.context.send("PWD");
     const parsed = resp.message.match(/"(.+)"/);
     if (parsed === null || parsed[1] === undefined) {
-      throw new Error(`Can't parse response to command 'PWD': ${resp.message}`);
+      throw new FtpError(`Can't parse response to command 'PWD': ${resp.message}`);
     }
     this.curPath = parsed[1];
     return parsed[1];
@@ -158,7 +159,7 @@ export class FtpClient {
     const resp = await this.context.send(`SIZE ${path}`);
     const size = parseInt(resp.message.slice(4), 10);
     if (Number.isNaN(size)) {
-      throw new Error(`get size for ${path} failed! ${resp.message}`);
+      throw new FtpError(`get size for ${path} failed! ${resp.message}`);
     }
     return size;
   }
@@ -202,13 +203,13 @@ export class FtpClient {
       if (offset != undefined && offset > 0) {
         const restResp = await this.context.send(`REST ${offset}`);
         if (!positiveIntermediate(restResp.code)) {
-          throw new Error(`seek to ${offset} failed`);
+          throw new FtpError(`seek to ${offset} failed`);
         }
       }
       targetLen = targetLen ? targetLen : (await this.size(path));
       const resp = await transfer?.input(`RETR ${path}`, targetLen, (data) => onReceiveData(data));
       if (!positiveCompletion(resp.code)) {
-        throw new Error("download failed " + resp.message);
+        throw new FtpError("download failed " + resp.message);
       }
     } finally {
       await transfer?.close();
@@ -233,7 +234,7 @@ export class FtpClient {
       onReady?.(controller);
       const resp = await transfer?.output(`STOR ${path}`, (buf) => source(buf), (cur, total) => onSend?.(cur, total));
       if (!positiveCompletion(resp.code)) {
-        throw new Error("download failed " + resp.message);
+        throw new FtpError("download failed " + resp.message);
       }
     } finally {
       await transfer?.close();

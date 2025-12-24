@@ -6,6 +6,7 @@ import { FtpUtils } from "../FtpUtils";
 import { JSON } from "@kit.ArkTS";
 import deviceInfo from "@ohos.deviceInfo";
 import { BusinessError } from "@ohos.base";
+import { FtpError } from "../FtpErrors";
 
 const tag = "FtpSocketTLSImpl";
 
@@ -77,7 +78,7 @@ export class FtpSocketTLSImpl implements FtpSocket {
 
   async send(data: string | ArrayBuffer): Promise<void> {
     if (!this.sock || !this.connectedAddress || !this.connectedPort) {
-      throw new Error("Invalid socket instance, please wait connect success");
+      throw new FtpError("Invalid socket instance, please wait connect success");
     }
     return this.sock.send(data);
   }
