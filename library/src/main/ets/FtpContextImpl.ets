@@ -246,7 +246,7 @@ export class FtpContextImpl implements FtpContext {
     if (this.utf8On) {
       return "utf8";
     }
-    return this._accessOptions.encoding ?? "utf8";
+    return this._accessOptions.encoding ? this._accessOptions.encoding : "utf8";
   }
 
   private async applyDefaultSettings() {
