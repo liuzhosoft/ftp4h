@@ -5,7 +5,6 @@ import { FtpSocketTLSImpl } from "./FtpSocketTLSImpl";
 import FtpLogger from "../FtpLogger";
 import { FtpUtils } from "../FtpUtils";
 import { BusinessError } from "@ohos.base";
-import deviceInfo from "@ohos.deviceInfo";
 import { FtpError } from "../FtpErrors";
 
 const tag = "FtpSocketTCPImpl";
@@ -15,6 +14,8 @@ export class FtpSocketTCPImpl implements FtpSocket {
   private connectedAddress: string | undefined;
   private connectedPort: number | undefined;
   private messageSubscribers: MessageSubscriber[] = [];
+  private closeSubscribers: ((error?: Error) => void)[] = [];
+  private closing: Promise<void> | undefined;
   private timeout: number = 0;
 
   connect(address: string, port: number, timeout: number): Promise<void> {
@@ -24,12 +25,24 @@ export class FtpSocketTCPImpl implements FtpSocket {
           await this.sock.close();
         }
         this.sock = socket.constructTCPSocketInstance();
-        this.sock.on("close", () => {
+        this.closing = undefined;
+        const currentSocket = this.sock;
+        this.sock.on("close", async () => {
           FtpLogger.debug(tag, `socket close for ${address}:${port}`);
-          this.sock = undefined;
+          if (this.sock !== currentSocket) {
+            return;
+          }
+          try {
+            // 对端已结束连接，释放本地描述符后通知读取方 EOF。
+            await this.close();
+            this.closeSubscribers.slice().forEach(subscriber => subscriber());
+          } catch (error) {
+            this.closeSubscribers.slice().forEach(subscriber => subscriber(error as Error));
+          }
         });
         this.sock.on("error", (err) => {
           reject(err);
+          this.closeSubscribers.slice().forEach(subscriber => subscriber(err));
           FtpLogger.error(tag, `socket error for  ${address}:${port}`, err);
         });
         this.sock.on("message", (msg) => {
@@ -83,12 +96,34 @@ export class FtpSocketTCPImpl implements FtpSocket {
     };
   }
 
+  subscribeClose(subscriber: (error?: Error) => void): () => void {
+    this.closeSubscribers.push(subscriber);
+    return () => {
+      const index = this.closeSubscribers.indexOf(subscriber);
+      if (index !== -1) {
+        this.closeSubscribers.splice(index, 1);
+      }
+    };
+  }
+
   async close(): Promise<void> {
-    await this.sock?.close();
+    if (this.closing !== undefined) {
+      await this.closing;
+      return;
+    }
+    const currentSocket = this.sock;
+    this.sock = undefined;
+    if (currentSocket !== undefined) {
+      this.closing = currentSocket.close();
+      await this.closing;
+    }
   }
 
   useTls(options: FtpTlsOptions): FtpSocket {
-    return new FtpSocketTLSImpl(options, this.sock);
+    const transport = this.sock;
+    // 升级后连接由 TLS 实例独占，TCP 的迟到关闭事件不能再次释放同一个描述符。
+    this.sock = undefined;
+    return new FtpSocketTLSImpl(options, transport);
   }
 
   hasTls(): boolean {

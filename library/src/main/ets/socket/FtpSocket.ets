@@ -12,6 +12,9 @@ export interface FtpSocket {
 
   subscribeMessage(subscriber: MessageSubscriber): () => void;
 
+  // 在最后一段数据之后通知对端关闭；有错误时不能当作正常 EOF。
+  subscribeClose(subscriber: (error?: Error) => void): () => void;
+
   close(): Promise<void>;
 
   useTls(options: FtpTlsOptions): FtpSocket;

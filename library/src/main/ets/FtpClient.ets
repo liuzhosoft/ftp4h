@@ -1,4 +1,4 @@
-import { FileInfo } from "./models/FileInfo";
+import { FileInfo, FileType } from "./models/FileInfo";
 import { AccessOptions } from "./AccessOptions";
 import { FtpContextImpl } from "./FtpContextImpl";
 import { positiveCompletion, positiveIntermediate } from "./parser/parseControlResponse";
@@ -9,6 +9,7 @@ import { parseList } from "./parser/parseList";
 import { FtpTransferController } from "./FtpTransferController";
 import { FtpContext } from "./FtpContext";
 import { FtpError } from "./FtpErrors";
+import { parseLine, parseMLSxDate } from "./parser/parseListMLSD";
 
 const tag = "FtpClient";
 
@@ -158,10 +159,63 @@ export class FtpClient {
     path = await this.toAbsolutePath(path);
     const resp = await this.context.send(`SIZE ${path}`);
     const size = parseInt(resp.message.slice(4), 10);
-    if (Number.isNaN(size)) {
+    if (resp.code !== 213 || Number.isNaN(size) || size < 0) {
       throw new FtpError(`get size for ${path} failed! ${resp.message}`);
     }
     return size;
+  }
+
+  /** 查询指定文件的大小和修改时间。优先使用控制通道，避免为单个文件重新列出整个目录。 */
+  async stat(path: string): Promise<FileInfo | undefined> {
+    path = await this.toAbsolutePath(path);
+    const end = path.endsWith("/") && path !== "/" ? path.length - 1 : path.length;
+    const normalized = path.substring(0, end);
+    const split = normalized.lastIndexOf("/");
+    const name = normalized.substring(split + 1);
+    if (this.context.hasFeature("MLST")) {
+      const response = await this.context.send(`MLST ${path}`);
+      if (response.code === 250) {
+        for (const line of response.message.split(/\r?\n/)) {
+          // MLST 的正文行以空格开头，名称可能是完整路径；cdir/pdir 在单文件查询中也是目录。
+          const facts = line.trimStart().replace(/(^|;)type=[cp]dir;/i, "$1type=dir;");
+          if (/^\S+=\S*;/.test(facts)) {
+            const info = parseLine(facts);
+            if (info !== undefined) {
+              info.name = name;
+              return info;
+            }
+          }
+        }
+        throw new FtpError(`Invalid MLST response: ${response.message}`);
+      }
+      if (response.code !== 500 && response.code !== 502 && response.code !== 504 && response.code !== 550) {
+        throw new FtpError(`MLST failed: ${response.message}`);
+      }
+      // 550 同时可能表示不存在或没有访问权限，继续查询确认，不能直接当成文件已删除。
+    }
+    const size = await this.context.send(`SIZE ${path}`);
+    if (size.code === 213) {
+      const info = new FileInfo(name);
+      info.type = FileType.File;
+      info.size = Number(size.message.substring(4).trim());
+      if (!Number.isSafeInteger(info.size) || info.size < 0) {
+        throw new FtpError(`Invalid SIZE response: ${size.message}`);
+      }
+      const modified = await this.context.send(`MDTM ${path}`);
+      if (modified.code === 213 && /^\d{14}(\.\d+)?$/.test(modified.message.substring(4).trim())) {
+        info.rawModifiedAt = modified.message.substring(4).trim();
+        info.modifiedAt = parseMLSxDate(info.rawModifiedAt);
+      } else if (modified.code !== 500 && modified.code !== 502 && modified.code !== 504) {
+        throw new FtpError(`MDTM failed: ${modified.message}`);
+      }
+      return info;
+    }
+    if (size.code !== 500 && size.code !== 502 && size.code !== 504 && size.code !== 550) {
+      throw new FtpError(`SIZE failed: ${size.message}`);
+    }
+    // 旧服务端可能不支持单文件命令，SIZE 也不能查询目录。仅这些情况退回目录查询，保留错误。
+    const entries = await this.list(normalized.substring(0, split) || "/", true);
+    return entries.find(entry => entry.name === name);
   }
 
   async mkdirs(path: string): Promise<boolean> {
@@ -188,7 +242,7 @@ export class FtpClient {
     onReceiveData: (data: ArrayBuffer) => void,
     onReady?: (controller: FtpTransferController) => void,
     offset?: number,
-    targetLen?: number,
+    targetLen?: number
   ): Promise<void> {
     path = await this.toAbsolutePath(path);
     let transfer: FtpTransfer | undefined;
@@ -200,13 +254,14 @@ export class FtpClient {
         }
       };
       onReady?.(controller);
-      if (offset != undefined && offset > 0) {
+      if (offset !== undefined && offset > 0) {
         const restResp = await this.context.send(`REST ${offset}`);
         if (!positiveIntermediate(restResp.code)) {
           throw new FtpError(`seek to ${offset} failed`);
         }
       }
-      targetLen = targetLen ? targetLen : (await this.size(path));
+      // 未指定长度时读取偏移之后的正文；显式传入的 0 代表空内容，不能回退为整文件大小。
+      targetLen = targetLen ?? Math.max(0, (await this.size(path)) - (offset ?? 0));
       const resp = await transfer?.input(`RETR ${path}`, targetLen, (data) => onReceiveData(data));
       if (!positiveCompletion(resp.code)) {
         throw new FtpError("download failed " + resp.message);

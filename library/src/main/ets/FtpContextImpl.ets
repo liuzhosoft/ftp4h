@@ -21,12 +21,22 @@ interface SocketTask {
   reject: (err: Error) => void;
 }
 
+interface ResponseWaiter {
+  resolve: (response: FtpResponse) => void;
+  reject: (error: Error) => void;
+}
+
 export class FtpContextImpl implements FtpContext {
   readonly timeout: number;
   private _accessOptions: AccessOptions = {};
   private commandSocket: FtpSocket | undefined;
   private taskQueue: SocketTask[] = [];
   private taskQueueRunning = false;
+  private responseWaiters: ResponseWaiter[] = [];
+  private responseSocket: FtpSocket | undefined;
+  private unsubscribeResponse: (() => void) | undefined;
+  private closing: Promise<void> | undefined;
+  private controlClosing: Promise<void> | undefined;
   private partialResponse = "";
   private features: Map<string, string> = new Map();
   private utf8On: boolean = false;
@@ -49,15 +59,61 @@ export class FtpContextImpl implements FtpContext {
     return this.commandSocket != undefined && (await this.commandSocket.isConnected());
   }
 
-  async close(): Promise<void> {
+  close(): Promise<void> {
+    if (this.closing) {
+      return this.closing;
+    }
     FtpLogger.debug(tag, `${this.instanceFlag()} close`);
-    await this.commandSocket?.close();
-    await this.transfer?.close();
+    const transfer = this.transfer;
+    this.transfer = undefined;
+    const controlClosing = this.closeControlConnection();
+    controlClosing.catch(() => {});
+    const closing = Promise.resolve().then(async () => {
+      try {
+        await transfer?.close();
+      } finally {
+        await controlClosing;
+      }
+    }).finally(() => {
+      if (this.closing === closing) {
+        this.closing = undefined;
+      }
+    });
+    this.closing = closing;
+    return closing;
+  }
+
+  closeControlConnection(): Promise<void> {
+    const commandSocket = this.commandSocket;
+    if (!commandSocket) {
+      return this.controlClosing ?? Promise.resolve();
+    }
+    // 先让控制连接失效，清理中的传输不能再被新命令复用。
+    this.commandSocket = undefined;
+    this.unsubscribeResponse?.();
+    this.unsubscribeResponse = undefined;
+    this.responseSocket = undefined;
+    this.partialResponse = "";
+    this.dataSocketUseTls = false;
+    const controlClosing = Promise.resolve().then(() => commandSocket.close()).finally(() => {
+      if (this.controlClosing === controlClosing) {
+        this.controlClosing = undefined;
+      }
+    });
+    this.controlClosing = controlClosing;
+    const error = new FtpError("FTP connection closed");
+    this.responseWaiters.slice().forEach(waiter => waiter.reject(error));
+    this.taskQueue.splice(0).forEach(task => task.reject(error));
+    return this.controlClosing;
   }
 
   async prepareTransfer(): Promise<FtpTransfer> {
     if (this.transfer) {
       throw new FtpError("illegal state, already has a transfer session");
+    }
+    const commandSocket = this.commandSocket;
+    if (!commandSocket) {
+      throw new FtpError("FTP connection closed");
     }
     const transferFactories: (() => FtpTransfer)[] = [
       () => new FtpTransferIpv6Impl(this),
@@ -65,16 +121,24 @@ export class FtpContextImpl implements FtpContext {
     ];
 
     for (const factory of transferFactories) {
+      const transfer = new FtpTransferCloseAwareWrapper(factory(), () => {
+        if (this.transfer === transfer) {
+          this.transfer = undefined;
+        }
+      });
+      this.transfer = transfer;
       try {
-        const transfer = new FtpTransferCloseAwareWrapper(factory(), () => {
-          if (this.transfer === transfer) {
-            this.transfer = undefined;
-          }
-        });
         await transfer.prepare();
-        this.transfer = transfer;
+        if (this.commandSocket !== commandSocket) {
+          throw new FtpError("FTP connection closed");
+        }
         return transfer;
       } catch (e) {
+        await transfer.close();
+        // 只有同一控制会话可以回退被动模式，已取消的准备任务不能向重连后的会话发送 PASV。
+        if (this.commandSocket !== commandSocket) {
+          throw e as Error;
+        }
       }
     }
 
@@ -106,6 +170,8 @@ export class FtpContextImpl implements FtpContext {
       FtpLogger.debug(tag, `${this.instanceFlag()} access already complete`);
       return { code: 220, message: "" };
     }
+    // 重连前等待上一会话的控制通道和数据通道都完成清理。
+    await this.close();
     const useExplicitTLS = this._accessOptions.secureMode === true;
     const useImplicitTLS = this._accessOptions.secureMode === "implicit";
     if (useImplicitTLS) {
@@ -114,10 +180,13 @@ export class FtpContextImpl implements FtpContext {
       this.commandSocket = new FtpSocketTCPImpl();
     }
     const welcomePromise = this.consumeNextMessage();
+    // 连接阶段失败时欢迎消息也会被取消，提前接住其拒绝，避免未处理的 Promise。
+    welcomePromise.catch(() => {});
     FtpLogger.debug(tag, `${this.instanceFlag()} connect start`);
     try {
       await this.commandSocket.connect(accessOptions.host ?? "localhost", accessOptions.port ?? 21, this.timeout);
     } catch (e) {
+      await this.close();
       throw new FtpConnectFailedError(`connect to ${accessOptions.host}:${accessOptions.port} failed`, e);
     }
     await welcomePromise;
@@ -155,9 +224,12 @@ export class FtpContextImpl implements FtpContext {
     return this.commandSocket?.getRemoteAddress();
   }
 
-  createSocket(): FtpSocket {
-    return this.dataSocketUseTls ? new FtpSocketTLSImpl(this.accessOptions.tlsOptions ?? {}) :
-      new FtpSocketTCPImpl();
+  createSocket(transport?: FtpSocket): FtpSocket {
+    if (this.dataSocketUseTls) {
+      const options = this.accessOptions.tlsOptions ?? {};
+      return transport ? transport.useTls(options) : new FtpSocketTLSImpl(options);
+    }
+    return transport ?? new FtpSocketTCPImpl();
   }
 
   /**
@@ -180,50 +252,70 @@ export class FtpContextImpl implements FtpContext {
     };
   }
 
-  consumeNextMessage(): Promise<FtpResponse> {
-    return new Promise(async (resolve, reject) => {
+  private listenForResponses(): void {
+    const commandSocket = this.commandSocket;
+    if (!commandSocket || this.responseSocket === commandSocket) {
+      return;
+    }
+    this.unsubscribeResponse?.();
+    this.responseSocket = commandSocket;
+    // 旧订阅在连接关闭或重新注册监听时取消，回调内同步解析收到的响应。
+    const messageSubscriber: MessageSubscriber = data => {
+      const serverMsg = CharsetUtil.decode(data, this.encoding());
+      FtpLogger.debug(tag, `${this.instanceFlag()} receive message: ${serverMsg}`);
+      const completeResponse = this.partialResponse + serverMsg;
+      //completeResponse 可能包含多个有效的response，解析第一条返回，其余的继续存下来等待后续的consumer
+      this.partialResponse = completeResponse;
+      // 监听持续到连接关闭；没有消费者时也保留响应，发送回调与下一次订阅之间不能丢包。
+      while (this.responseWaiters.length > 0) {
+        const response = this.takeResponseFromPartialResponse();
+        if (!response) {
+          break;
+        }
+        this.responseWaiters[0].resolve(response);
+      }
+    };
+    this.unsubscribeResponse = commandSocket.subscribeMessage(messageSubscriber);
+  }
+
+  consumeNextMessage(timeout: number = this.timeout): Promise<FtpResponse> {
+    return new Promise((resolve, reject) => {
       if (!this.commandSocket) {
         reject(new FtpError("invalid state, commandSocket is not ready!"));
         return;
       }
+      this.listenForResponses();
       const cachedResp = this.takeResponseFromPartialResponse();
       if (cachedResp) {
-        FtpLogger.debug(tag,
-          `${this.instanceFlag()} taked response from PartialResponse: ${JSON.stringify(cachedResp)}`);
         resolve(cachedResp);
         return;
       }
-      let unsubscribe: () => void = () => {
-      };
-      const messageSubscriber: MessageSubscriber = (data) => {
-        const serverMsg = CharsetUtil.decode(data, this.encoding());
-        FtpLogger.debug(tag,
-          `${this.instanceFlag()} receive message: ${serverMsg}\npartialResp=${this.partialResponse}`);
-        if (serverMsg) {
-          const completeResponse = this.partialResponse + serverMsg;
-          //completeResponse 可能包含多个有效的response，解析第一条返回，其余的继续存下来等待后续的consumer
-          const parsed = parseControlResponse(completeResponse, true);
-          this.partialResponse = parsed.rest;
-          FtpLogger.debug(tag,
-            `${this.instanceFlag()} record partinalResp: ${this.partialResponse}`);
-          const responses: FtpResponse[] = [];
-          parsed.messages.forEach((msg) => {
-            const code = parseInt(msg.substring(0, 3), 10);
-            responses.push({ code: code, message: msg });
-          });
-          if (responses.length > 0) {
-            unsubscribe();
-            FtpLogger.debug(tag, `${this.instanceFlag()} receive resp ${JSON.stringify(responses)}`);
-            const last = responses[responses.length-1];
-            resolve({
-              code: last.code,
-              message: last.message,
-              multiLineResponse: responses.length > 1 ? responses : undefined
-            });
-          }
+      let timer: number | undefined;
+      const cleanup = () => {
+        clearTimeout(timer);
+        const index = this.responseWaiters.indexOf(waiter);
+        if (index !== -1) {
+          this.responseWaiters.splice(index, 1);
         }
       };
-      unsubscribe = this.commandSocket.subscribeMessage(messageSubscriber);
+      const waiter: ResponseWaiter = {
+        resolve: response => {
+          cleanup();
+          resolve(response);
+        },
+        reject: error => {
+          cleanup();
+          reject(error);
+        }
+      };
+      this.responseWaiters.push(waiter);
+      // 数据传输的最终响应由传输层按活动情况计时，普通命令仍有独立响应期限。
+      if (timeout > 0) {
+        timer = setTimeout(() => {
+          waiter.reject(new FtpError("FTP response timed out"));
+          this.close().catch((error: Error) => FtpLogger.error(tag, "close timed out connection failed", error));
+        }, timeout);
+      }
     });
   }
 
@@ -280,32 +372,35 @@ export class FtpContextImpl implements FtpContext {
   }
 
   private async checkToEnqueueTasks() {
-    if (!this.taskQueueRunning) {
-      this.taskQueueRunning = true;
-      try {
-        do {
-          const task = this.taskQueue.shift();
-          if (task) {
-            await new Promise<void>(async (resolve) => {
-              if (!this.commandSocket) {
-                task.reject(new FtpError("invalid state, commandSocket is not ready!"));
-                resolve();
-                return;
-              }
-              this.consumeNextMessage()
-                .then((resp) => task.resolve(resp))
-                .catch((e: Error) => task.reject(e))
-                .finally(() => {
-                  resolve();
-                });
-              FtpLogger.debug(tag, `${this.instanceFlag()} real send command ${task.cmd}`);
-              this.commandSocket.send(CharsetUtil.encode(task.cmd + "\r\n", this.encoding()));
-            });
+    if (this.taskQueueRunning) {
+      return;
+    }
+    this.taskQueueRunning = true;
+    try {
+      while (this.taskQueue.length > 0) {
+        const task = this.taskQueue.shift()!;
+        const commandSocket = this.commandSocket;
+        try {
+          if (!commandSocket) {
+            throw new FtpError("invalid state, commandSocket is not ready!");
           }
-        } while (this.taskQueue.length > 0);
-      } finally {
-        this.taskQueueRunning = false;
+          const response = this.consumeNextMessage();
+          FtpLogger.debug(tag, `${this.instanceFlag()} real send command ${task.cmd}`);
+          await Promise.all([
+            response,
+            commandSocket.send(CharsetUtil.encode(task.cmd + "\r\n", this.encoding()))
+          ]);
+          task.resolve(await response);
+        } catch (e) {
+          task.reject(e as Error);
+          // 等待发送或响应期间可能已取消并清理连接；异常只关闭本次命令使用的连接。
+          if (this.commandSocket === commandSocket) {
+            await this.close();
+          }
+        }
       }
+    } finally {
+      this.taskQueueRunning = false;
     }
   }
 }

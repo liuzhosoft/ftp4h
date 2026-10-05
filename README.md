@@ -66,3 +66,13 @@ ohpm install @liuzhosoft/ftp4h
 
 上游项目来自 [BasicFtp](https://gitee.com/openharmony-tpc/openharmony_tpc_samples/tree/master/BasicFtp)
 ，开源协议为 [MIT License](https://gitee.com/openharmony-tpc/openharmony_tpc_samples/blob/master/BasicFtp/LICENSE)
+
+## 已知 FTPS 兼容性问题
+
+2026-10-05 的真机测试发现：对接本次 FTPS 服务端时，空文件和非空文件上传在发送结束后，
+服务端可能返回 `426 Failure reading network stream`。具体原因仍待确认，TLS 数据连接关闭及
+`close_notify` 是排查方向；当前实现仍使用系统 TLS，此问题尚未解决。
+
+上传必须同时完成数据发送并收到服务端的成功响应。收到 426 时仍按失败处理，
+不能仅凭正文已经发完或远端文件已经出现就报告成功。相关失败传播回归用例保留在
+`library/src/test/ftps_transfer_test.cjs`。

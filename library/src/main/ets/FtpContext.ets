@@ -15,6 +15,8 @@ export interface FtpContext {
 
   close(): Promise<void>;
 
+  closeControlConnection(): Promise<void>;
+
   prepareTransfer(): Promise<FtpTransfer>;
 
   send(command: string): Promise<FtpResponse>;
@@ -25,9 +27,9 @@ export interface FtpContext {
 
   getRemoteAddress(): Promise<socket.NetAddress | undefined>;
 
-  createSocket(): FtpSocket;
+  createSocket(transport?: FtpSocket): FtpSocket;
 
-  consumeNextMessage(): Promise<FtpResponse>;
+  consumeNextMessage(timeout?: number): Promise<FtpResponse>;
 
   encoding(): StringEncoding;
 }
